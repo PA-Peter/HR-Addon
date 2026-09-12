@@ -31,47 +31,60 @@ class WeeklyWorkingHours(Document):
 			frappe.throw(_("{0} is not active").format(frappe.get_desk_link('Employee', self.employee)))
 
 	def validate_overlapping_records_in_specific_interval(self):
-
-		if not self.valid_from or not self.valid_to:
-			frappe.throw("From Date and To Date are required.")
+		if not self.valid_from:
+			frappe.throw(_("From Date is required."))
 
 		if not self.employee:
-			frappe.throw("Employee required.")
+			frappe.throw(_("Employee required."))
 
 		valid_from = getdate(self.valid_from)
-		valid_to = getdate(self.valid_to)
+		valid_to = getdate(self.valid_to) if self.valid_to else None
 
-		filters = {"valid_from": valid_from, "valid_to": valid_to, "employee": self.employee}
+		if valid_to and valid_from > valid_to:
+			frappe.throw(_("From Date cannot be after To Date."))
 
 		wwh = frappe.qb.DocType("Weekly Working Hours")
+
 		overlapping_records = (
 			frappe.qb.from_(wwh)
 			.select(wwh.name)
-			.where(
-				(
-					(wwh.valid_from <= filters["valid_from"])
-					& (wwh.valid_to >= filters["valid_to"])
-				)
-				| (
-					(wwh.valid_from >= filters["valid_from"])
-					& (wwh.valid_to <= filters["valid_to"])
-				)
-			)
-			.where(wwh.employee == filters["employee"])
+			.where(wwh.employee == self.employee)
 			.where(wwh.docstatus == 1)
+			.where(
+				wwh.valid_to.isnull()
+				| (wwh.valid_to >= valid_from)
+			)
 		)
 
+		if valid_to:
+			overlapping_records = overlapping_records.where(
+				wwh.valid_from <= valid_to
+			)
+
 		if not self.is_new():
-			filters["name"] = self.name
-			overlapping_records = overlapping_records.where(wwh.name != filters["name"])
+			overlapping_records = overlapping_records.where(
+				wwh.name != self.name
+			)
 
 		results = overlapping_records.run(as_dict=True)
 
 		if results:
-			overlapping_links = "<br> ".join([frappe.get_desk_link("Weekly Working Hours", d.name) for d in results])
-			frappe.throw("Following Weekly Working Hours record already exists for {0} for the specified date range:<br> {1}".format(
-				frappe.get_desk_link("Employee", self.employee), overlapping_links))
+			overlapping_links = "<br> ".join(
+				[
+					frappe.get_desk_link("Weekly Working Hours", d.name)
+					for d in results
+				]
+			)
 
+			frappe.throw(
+				_(
+					"Following Weekly Working Hours record already exists for {0} "
+					"for the specified date range:<br> {1}"
+				).format(
+					frappe.get_desk_link("Employee", self.employee),
+					overlapping_links,
+				)
+			)
 
 @frappe.whitelist()
 def set_from_to_dates():
