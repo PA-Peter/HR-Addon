@@ -31,9 +31,6 @@ doc_events = {
 }
 
 scheduler_events = {
-	"yearly": [
-		"hr_addon.hr_addon.doctype.weekly_working_hours.weekly_working_hours.set_from_to_dates",
-	],
 	"daily": [
 		"hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.send_work_anniversary_notification"
 	]
