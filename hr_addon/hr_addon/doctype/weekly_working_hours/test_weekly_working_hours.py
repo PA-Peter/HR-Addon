@@ -163,7 +163,7 @@ class TestWeeklyWorkingHours(IntegrationTestCase):
 				"2027-07-01",
 				"2027-12-31",
 			)
-		def test_open_ended_period_is_valid_for_workday_lookup(self):
+	def test_open_ended_period_is_valid_for_workday_lookup(self):
 		self.make_wwh(
 			"2027-01-01",
 			valid_to=None,
