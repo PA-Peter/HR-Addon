@@ -1041,21 +1041,21 @@ def has_valid_weekly_working_hours(employee, date):
 	date = frappe.utils.getdate(date)
 	dayname = date.strftime('%A')
 
-WeeklyWorkingHours = frappe.qb.DocType("Weekly Working Hours")
+	WeeklyWorkingHours = frappe.qb.DocType("Weekly Working Hours")
 
-weekly_hours = (
-	frappe.qb.from_(WeeklyWorkingHours)
-	.select(WeeklyWorkingHours.name)
-	.where(
-		(WeeklyWorkingHours.employee == employee)
-		& (WeeklyWorkingHours.docstatus == 1)
-		& (WeeklyWorkingHours.valid_from <= date)
-		& (
-			WeeklyWorkingHours.valid_to.isnull()
-			| (WeeklyWorkingHours.valid_to >= date)
+	weekly_hours = (
+		frappe.qb.from_(WeeklyWorkingHours)
+		.select(WeeklyWorkingHours.name)
+		.where(
+			(WeeklyWorkingHours.employee == employee)
+			& (WeeklyWorkingHours.docstatus == 1)
+			& (WeeklyWorkingHours.valid_from <= date)
+			& (
+				WeeklyWorkingHours.valid_to.isnull()
+				| (WeeklyWorkingHours.valid_to >= date)
+			)
 		)
-	)
-).run(as_dict=True)
+	).run(as_dict=True)
 
 	if not weekly_hours:
 		return False
@@ -1066,12 +1066,11 @@ weekly_hours = (
 		"Daily Hours Detail",
 		{
 			"parent": ["in", parent_names],
-			"day": dayname
-		}
+			"day": dayname,
+		},
 	)
 
-	return True if daily_hours else False 			
-
+	return True if daily_hours else False
 
 def bulk_process_workdays_background(data,flag):
 	'''bulk workday processing'''
