@@ -1038,16 +1038,21 @@ def has_valid_weekly_working_hours(employee, date):
 	date = frappe.utils.getdate(date)
 	dayname = date.strftime('%A')
 
-	weekly_hours = frappe.db.get_all(
-		"Weekly Working Hours",
-		filters={
-			"employee": employee,
-			"docstatus": 1,
-			"valid_from": ["<=", date],
-			"valid_to": [">=", date],
-		},
-		fields=["name"]
+WeeklyWorkingHours = frappe.qb.DocType("Weekly Working Hours")
+
+weekly_hours = (
+	frappe.qb.from_(WeeklyWorkingHours)
+	.select(WeeklyWorkingHours.name)
+	.where(
+		(WeeklyWorkingHours.employee == employee)
+		& (WeeklyWorkingHours.docstatus == 1)
+		& (WeeklyWorkingHours.valid_from <= date)
+		& (
+			WeeklyWorkingHours.valid_to.isnull()
+			| (WeeklyWorkingHours.valid_to >= date)
+		)
 	)
+).run(as_dict=True)
 
 	if not weekly_hours:
 		return False
