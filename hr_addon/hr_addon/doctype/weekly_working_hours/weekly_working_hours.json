@@ -59,7 +59,7 @@
   {
    "fieldname": "valid_to",
    "fieldtype": "Date",
-   "label": "To Date",
+   "label": "To Date"
   },
   {
    "fieldname": "column_break_6",
