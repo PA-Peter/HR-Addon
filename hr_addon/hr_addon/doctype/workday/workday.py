@@ -403,7 +403,10 @@ def get_employee_default_work_hour(employee, adate, skip_workday_if_no_weekly_ho
             (WeeklyWorkingHours.employee == employee)
             & (DailyHoursDetail.day == dayname)
             & (WeeklyWorkingHours.valid_from <= adate)
-            & (WeeklyWorkingHours.valid_to >= adate)
+            & (
+            	WeeklyWorkingHours.valid_to.isnull()
+				| (WeeklyWorkingHours.valid_to >= adate)
+			)
             & (WeeklyWorkingHours.docstatus == 1)
         )
     )
