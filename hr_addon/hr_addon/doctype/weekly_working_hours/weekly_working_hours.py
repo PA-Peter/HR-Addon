@@ -85,38 +85,3 @@ class WeeklyWorkingHours(Document):
 					overlapping_links,
 				)
 			)
-
-@frappe.whitelist()
-def set_from_to_dates():
-    # Ensure fiscal year data is present
-	FiscalYear = frappe.qb.DocType('Fiscal Year')
-	fiscal_year = (
-		frappe.qb.from_(FiscalYear)
-		.select(FiscalYear.year_start_date ,FiscalYear.year_end_date)
-		.where(FiscalYear.disabled == 0)
-	).run(as_dict=True)
-
-	if not fiscal_year:
-		frappe.throw("No active fiscal year found.")
-    
-	year_start_date = fiscal_year[0].year_start_date
-	year_end_date = fiscal_year[0].year_end_date
-
-	# Update the valid_from and valid_to fields
-	wwh = frappe.qb.DocType("Weekly Working Hours")
-	Employee = frappe.qb.DocType("Employee")
-
-	subquery = (
-		frappe.qb.from_(Employee)
-		.select(Employee.name)
-		.where(Employee.permanent == 1)
-	)
-
-	update_query = (
-		frappe.qb.update(wwh)
-		.set(wwh.valid_from, year_start_date)
-		.set(wwh.valid_to, year_end_date)
-		.where(wwh.employee.isin(subquery))
-	).run()
-
-	frappe.db.commit()
