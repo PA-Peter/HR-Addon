@@ -4,6 +4,10 @@
 import frappe
 from erpnext.setup.doctype.employee.test_employee import make_employee
 from frappe.tests import IntegrationTestCase
+from hr_addon.hr_addon.doctype.workday.workday import (
+	get_employee_default_work_hour,
+	has_valid_weekly_working_hours,
+)
 
 
 class TestWeeklyWorkingHours(IntegrationTestCase):
@@ -159,3 +163,32 @@ class TestWeeklyWorkingHours(IntegrationTestCase):
 				"2027-07-01",
 				"2027-12-31",
 			)
+		def test_open_ended_period_is_valid_for_workday_lookup(self):
+		self.make_wwh(
+			"2027-01-01",
+			valid_to=None,
+			submit=True,
+		)
+
+		self.assertTrue(
+			has_valid_weekly_working_hours(
+				self.employee,
+				"2027-01-04",
+			)
+		)
+
+	def test_open_ended_period_supplies_target_hours(self):
+		self.make_wwh(
+			"2027-01-01",
+			valid_to=None,
+			submit=True,
+		)
+
+		work_hours = get_employee_default_work_hour(
+			self.employee,
+			"2027-01-04",
+			skip_workday_if_no_weekly_hours=True,
+		)
+
+		self.assertIsNotNone(work_hours)
+		self.assertEqual(work_hours.hours, 8)
