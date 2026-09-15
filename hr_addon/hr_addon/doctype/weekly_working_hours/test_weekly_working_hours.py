@@ -2,7 +2,6 @@
 # See license.txt
 
 import frappe
-from erpnext.setup.doctype.employee.test_employee import make_employee
 from frappe.tests import IntegrationTestCase
 from hr_addon.hr_addon.doctype.workday.workday import (
 	get_employee_default_work_hour,
@@ -20,12 +19,24 @@ class TestWeeklyWorkingHours(IntegrationTestCase):
 			limit=1,
 		)[0]
 
-		test_email = f"wwh-{self._testMethodName}@example.com"
+		gender = frappe.get_all(
+    		"Gender",
+    		pluck="name",
+    		limit=1,
+		)[0]
 
-		self.employee = make_employee(
-			test_email,
-			company=self.company,
-		)
+		self.employee = frappe.get_doc(
+    		{
+        		"doctype": "Employee",
+        		"naming_series": "HR-EMP-",
+        		"first_name": f"WWH Test {self._testMethodName}",
+        		"company": self.company,
+        		"date_of_birth": "1990-01-01",
+        		"date_of_joining": "2026-01-01",
+        		"gender": gender,
+        		"status": "Active",
+    		}
+		).insert().name
 
 	def make_wwh(self, valid_from, valid_to=None, submit=False):
 		doc = frappe.get_doc(
