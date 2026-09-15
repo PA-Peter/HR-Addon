@@ -8,6 +8,7 @@ from hr_addon.hr_addon.doctype.workday.workday import (
 	has_valid_weekly_working_hours,
 )
 
+IGNORE_TEST_RECORD_DEPENDENCIES = ["Employee", "Company"]
 
 class TestWeeklyWorkingHours(IntegrationTestCase):
 	def setUp(self):
