@@ -10,6 +10,7 @@ from frappe.query_builder import DocType
 from pypika import Order
 from pypika.functions import Date
 from hrms.hr.utils import get_holiday_dates_for_employee
+from hrms.utils.holiday_list import get_holiday_list_for_employee
 import traceback
 
 class Workday(Document):
@@ -800,15 +801,17 @@ def get_employee_attendance(employee,atime):
 
     return attendance_list
 
-
 @frappe.whitelist()
 def date_is_in_holiday_list(employee, date):
-    holiday_list = frappe.get_cached_value("Employee", employee, "holiday_list")
+    holiday_list = get_holiday_list_for_employee(
+        employee,
+        raise_exception=False,
+        as_on=date,
+    )
     if not holiday_list:
-        frappe.msgprint(_("Holiday list not set in {0}").format(employee))
         return False
 
-    Holiday = frappe.qb.DocType('Holiday')
+    Holiday = frappe.qb.DocType("Holiday")
     holidays = (
         frappe.qb.from_(Holiday)
         .select(Holiday.holiday_date)
@@ -817,7 +820,6 @@ def date_is_in_holiday_list(employee, date):
     ).run()
 
     return len(holidays) > 0
-
 
 def create_background_job_for_workday_generation(hr_addon_settings):
 	from frappe.core.doctype.scheduled_job_type.scheduled_job_type import insert_single_event	
