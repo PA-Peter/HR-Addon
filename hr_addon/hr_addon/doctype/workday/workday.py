@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, get_datetime, getdate, add_days, formatdate, flt
-from frappe.utils.data import date_diff, time_diff_in_hours
+from frappe.utils.data import date_diff
 from frappe.query_builder import DocType
 from pypika import Order
 from pypika.functions import Date
@@ -377,6 +377,156 @@ def get_employee_checkin(employee,atime):
 
     return checkin_list or []
 
+def _get_checkin_value(checkin, fieldname, default=None):
+    """Read a field from frappe._dict/dict or document-like objects."""
+    if hasattr(checkin, "get"):
+        value = checkin.get(fieldname)
+    else:
+        value = getattr(checkin, fieldname, None)
+
+    return default if value is None else value
+
+
+def _minute_timestamp(value):
+    """
+    Normalize a timestamp to full-minute precision without mathematical rounding.
+    Seconds and microseconds are discarded.
+    """
+    timestamp = get_datetime(value)
+    return timestamp.replace(second=0, microsecond=0)
+
+
+def parse_employee_checkins(employee_checkins):
+    """
+    Parse Employee Checkins using strict IN -> OUT semantics.
+
+    skip_auto_attendance checkins remain in audit_checkins but are completely
+    excluded from working-time calculation.
+
+    Returns integer-minute values as the authoritative calculation basis.
+    """
+    audit_checkins = list(employee_checkins or [])
+
+    effective_checkins = [
+        checkin
+        for checkin in audit_checkins
+        if not cint(_get_checkin_value(checkin, "skip_auto_attendance", 0))
+    ]
+
+    result = {
+        "is_valid": False,
+        "error": None,
+        "audit_checkins": audit_checkins,
+        "effective_checkins": effective_checkins,
+        "work_intervals": [],
+        "break_intervals": [],
+        "raw_work_minutes": 0,
+        "physical_break_minutes": 0,
+        "on_site_minutes": 0,
+        "first_checkin": "",
+        "last_checkout": "",
+    }
+
+    # All checkins may legitimately be disabled. For the calculation this is
+    # equivalent to having no active checkins, while audit data is preserved.
+    if not effective_checkins:
+        result["is_valid"] = True
+        return result
+
+    for checkin in effective_checkins:
+        if not _get_checkin_value(checkin, "time"):
+            result["error"] = "Employee Checkin without timestamp."
+            return result
+
+    effective_checkins.sort(
+        key=lambda checkin: get_datetime(_get_checkin_value(checkin, "time"))
+    )
+    result["effective_checkins"] = effective_checkins
+
+    # Validate actual log_type values, not list positions alone.
+    for index, checkin in enumerate(effective_checkins):
+        expected_log_type = "IN" if index % 2 == 0 else "OUT"
+        actual_log_type = str(
+            _get_checkin_value(checkin, "log_type", "")
+        ).strip().upper()
+
+        if actual_log_type != expected_log_type:
+            result["error"] = (
+                f"Invalid Employee Checkin sequence at position {index + 1}: "
+                f"expected {expected_log_type}, got {actual_log_type or 'EMPTY'}."
+            )
+            return result
+
+    result["first_checkin"] = _minute_timestamp(
+        _get_checkin_value(effective_checkins[0], "time")
+    )
+
+    if str(_get_checkin_value(effective_checkins[-1], "log_type", "")).upper() == "OUT":
+        result["last_checkout"] = _minute_timestamp(
+            _get_checkin_value(effective_checkins[-1], "time")
+        )
+
+    # A syntactically correct odd sequence ends in IN and therefore misses OUT.
+    if len(effective_checkins) % 2 != 0:
+        result["error"] = "Missing OUT Employee Checkin."
+        return result
+
+    previous_out = None
+
+    for index in range(0, len(effective_checkins), 2):
+        checkin_in = effective_checkins[index]
+        checkin_out = effective_checkins[index + 1]
+
+        interval_start = _minute_timestamp(
+            _get_checkin_value(checkin_in, "time")
+        )
+        interval_end = _minute_timestamp(
+            _get_checkin_value(checkin_out, "time")
+        )
+
+        work_minutes = int(
+            (interval_end - interval_start).total_seconds() // 60
+        )
+
+        if work_minutes < 0:
+            result["error"] = "OUT Employee Checkin occurs before IN."
+            return result
+
+        if previous_out is not None:
+            break_minutes = int(
+                (interval_start - previous_out).total_seconds() // 60
+            )
+
+            if break_minutes < 0:
+                result["error"] = "Overlapping Employee Checkin intervals."
+                return result
+
+            result["break_intervals"].append(
+                {
+                    "start": previous_out,
+                    "end": interval_start,
+                    "minutes": break_minutes,
+                }
+            )
+            result["physical_break_minutes"] += break_minutes
+
+        result["work_intervals"].append(
+            {
+                "start": interval_start,
+                "end": interval_end,
+                "minutes": work_minutes,
+            }
+        )
+        result["raw_work_minutes"] += work_minutes
+
+        previous_out = interval_end
+
+    result["on_site_minutes"] = (
+        result["raw_work_minutes"] + result["physical_break_minutes"]
+    )
+    result["is_valid"] = True
+
+    return result
 
 def get_employee_default_work_hour(employee, adate, skip_workday_if_no_weekly_hours=None):
     adate = getdate(adate)
@@ -667,104 +817,118 @@ def calculate_actual_working_hours(hours_worked, break_hours, default_break_hour
 
 def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
     hr_addon_settings = frappe.get_cached_doc("HR Addon Settings")
-    is_break_from_checkins_with_swapped_hours = hr_addon_settings.workday_break_calculation_mechanism == "Break Hours from Employee Checkins" and hr_addon_settings.swap_hours_worked_and_actual_working_hours
-    new_workday = {}
 
-    hours_worked = 0.0
-    total_duration = 0
-    first_checkin = ""
-    last_checkout = ""
+    is_break_from_checkins_with_swapped_hours = (
+        hr_addon_settings.workday_break_calculation_mechanism
+        == "Break Hours from Employee Checkins"
+        and hr_addon_settings.swap_hours_worked_and_actual_working_hours
+    )
 
     default_break_minutes = employee_default_work_hour.break_minutes
     default_break_hours = flt(default_break_minutes / 60)
     target_hours = employee_default_work_hour.hours
 
-    if len(employee_checkins) % 2 == 0:
-        # Even number of checkins – normal calculation flow
-        # seperate 'IN' from 'OUT'
-        clockin_list = [get_datetime(kin.time) for x, kin in enumerate(employee_checkins) if x % 2 == 0]
-        clockout_list = [get_datetime(kout.time) for x, kout in enumerate(employee_checkins) if x % 2 != 0]
+    parsed_checkins = parse_employee_checkins(employee_checkins)
+    effective_checkins = parsed_checkins["effective_checkins"]
 
-        # get total worked hours
-        for i in range(len(clockin_list)):
-            wh = time_diff_in_hours(clockout_list[i], clockin_list[i])
-            hours_worked += float(str(wh))
+    # Invalid IN/OUT sequence: no guessed working time.
+    if not parsed_checkins["is_valid"]:
+        attendance = (
+            _get_checkin_value(effective_checkins[0], "attendance", "")
+            if effective_checkins
+            else ""
+        )
 
-        # Calculate difference between first check-in and last checkout
-        if clockin_list and clockout_list:
-            first_checkin = clockin_list[0]
-            last_checkout = clockout_list[-1]  # Last element of clockout_list
-            total_duration = time_diff_in_hours(last_checkout, first_checkin)
-
-        if is_break_from_checkins_with_swapped_hours:
-            total_duration, hours_worked = hours_worked, total_duration
-
-        break_from_checkins = 0.0
-        for i in range(len(clockout_list) - 1):
-            wh = time_diff_in_hours(clockin_list[i + 1], clockout_list[i])
-            break_from_checkins += float(wh)
-
-        if hr_addon_settings.workday_break_calculation_mechanism == "Break Hours from Employee Checkins":
-            break_hours = break_from_checkins
-
-        elif hr_addon_settings.workday_break_calculation_mechanism == "Break Hours from Weekly Working Hours":
-            break_hours = default_break_hours
-
-        elif hr_addon_settings.workday_break_calculation_mechanism == "Break Hours from Weekly Working Hours if Shorter breaks":
-            if break_from_checkins <= default_break_hours:
-                break_hours = default_break_hours
-            else:
-                break_hours = break_from_checkins
-        else:
-            break_hours = 0.0
-
-    else:
-        # Odd number of checkins – create Workday with status "Missing Checkin"
-        attendance = employee_checkins[0].attendance if len(employee_checkins) > 0 else ""
-
-        if employee_checkins:
-            first_checkin = get_datetime(employee_checkins[0].time)
-            last_checkout = get_datetime(employee_checkins[-1].time)
-
-        hours_worked = 0.0
-        break_hours = 0.0
-        actual_working_hours = 0.0
-
-        new_workday.update({
+        return {
             "target_hours": target_hours,
             "break_minutes": default_break_minutes,
-            "hours_worked": hours_worked,
+            "hours_worked": 0.0,
             "expected_break_hours": default_break_hours,
-            "actual_working_hours": actual_working_hours,
+            "actual_working_hours": 0.0,
             "nbreak": 0,
             "attendance": attendance,
             "status": "Missing Checkin",
-            "break_hours": break_hours,
-            "first_checkin": first_checkin,
-            "last_checkout": last_checkout,
+            "break_hours": 0.0,
+            "first_checkin": parsed_checkins["first_checkin"],
+            "last_checkout": parsed_checkins["last_checkout"],
+            # Preserve every raw checkin, including skip_auto_attendance=1,
+            # for auditability.
             "employee_checkins": employee_checkins,
-        })
+        }
 
-        return new_workday
+    # All existing checkins may be logically disabled. In that case they have
+    # no working-time effect but remain visible in the Workday audit data.
+    if not effective_checkins:
+        return {
+            "target_hours": target_hours,
+            "break_minutes": default_break_minutes,
+            "hours_worked": 0.0,
+            "expected_break_hours": default_break_hours,
+            "actual_working_hours": 0.0,
+            "manual_workday": 1,
+            "nbreak": 0,
+            "attendance": "",
+            "status": "",
+            "break_hours": 0.0,
+            "first_checkin": "",
+            "last_checkout": "",
+            "employee_checkins": employee_checkins,
+        }
 
-    hours_worked = flt(hours_worked)
+    # Integer minutes are now the authoritative calculation basis.
+    raw_work_minutes = parsed_checkins["raw_work_minutes"]
+    physical_break_minutes = parsed_checkins["physical_break_minutes"]
+    on_site_minutes = parsed_checkins["on_site_minutes"]
 
-    # Calculate actual_working_hours using shared function
+    # Legacy HR-Addon fields remain hours for now; derive them only after
+    # minute calculation.
+    hours_worked = flt(raw_work_minutes / 60.0)
+    break_from_checkins = flt(physical_break_minutes / 60.0)
+    total_duration = flt(on_site_minutes / 60.0)
+
+    if is_break_from_checkins_with_swapped_hours:
+        total_duration, hours_worked = hours_worked, total_duration
+
+    mechanism = hr_addon_settings.workday_break_calculation_mechanism
+
+    if mechanism == "Break Hours from Employee Checkins":
+        break_hours = break_from_checkins
+
+    elif mechanism == "Break Hours from Weekly Working Hours":
+        break_hours = default_break_hours
+
+    elif mechanism == "Break Hours from Weekly Working Hours if Shorter breaks":
+        if break_from_checkins <= default_break_hours:
+            break_hours = default_break_hours
+        else:
+            break_hours = break_from_checkins
+
+    else:
+        break_hours = 0.0
+
     actual_working_hours = calculate_actual_working_hours(
         hours_worked=hours_worked,
         break_hours=break_hours,
         default_break_hours=default_break_hours,
-        mechanism=hr_addon_settings.workday_break_calculation_mechanism,
+        mechanism=mechanism,
         total_duration=total_duration,
         is_swapped=is_break_from_checkins_with_swapped_hours,
         no_break_hours=no_break_hours,
-        hours_worked_threshold=6
+        hours_worked_threshold=6,
     )
-    
-    attendance = employee_checkins[0].attendance if len(employee_checkins) > 0 else ""
-    status = frappe.db.get_value("Attendance", attendance, "status") if attendance else ""
 
-    new_workday.update({
+    attendance = _get_checkin_value(
+        effective_checkins[0],
+        "attendance",
+        "",
+    )
+    status = (
+        frappe.db.get_value("Attendance", attendance, "status")
+        if attendance
+        else ""
+    )
+
+    return {
         "target_hours": target_hours,
         "break_minutes": default_break_minutes,
         "hours_worked": hours_worked,
@@ -774,13 +938,10 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
         "attendance": attendance,
         "status": status,
         "break_hours": break_hours,
-        "first_checkin": first_checkin,
-        "last_checkout": last_checkout,
-        "employee_checkins":employee_checkins,
-    })
-
-    return new_workday
-
+        "first_checkin": parsed_checkins["first_checkin"],
+        "last_checkout": parsed_checkins["last_checkout"],
+        "employee_checkins": employee_checkins,
+    }
 
 def get_employee_attendance(employee,atime):
     Attendance = frappe.qb.DocType('Attendance')
