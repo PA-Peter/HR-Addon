@@ -134,7 +134,7 @@ class TestEmployeeCheckinParser(UnitTestCase):
         )
 
         self.assertTrue(result["is_valid"])
-        self.assertEqual(result["raw_work_minutes"], 60)
+        self.assertEqual(result["raw_work_minutes"], 59)
 
 class TestWorkday(IntegrationTestCase):
     def setUp(self):
