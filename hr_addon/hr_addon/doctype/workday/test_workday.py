@@ -6,6 +6,7 @@ from frappe.tests import IntegrationTestCase, UnitTestCase
 
 from hr_addon.hr_addon.doctype.workday.workday import (
     date_is_in_holiday_list,
+    evaluate_minimum_break,
     parse_employee_checkins,
 )
 
@@ -214,4 +215,116 @@ class TestWorkday(IntegrationTestCase):
                 self.employee,
                 "2026-09-08",
             )
+        )
+
+class TestMinimumBreakEvaluation(UnitTestCase):
+    RULES = [
+        frappe._dict(
+            from_hours=0,
+            to_hours=6,
+            minimum_break_minutes=0,
+        ),
+        frappe._dict(
+            from_hours=6,
+            to_hours=9,
+            minimum_break_minutes=30,
+        ),
+        frappe._dict(
+            from_hours=9,
+            to_hours=None,
+            minimum_break_minutes=45,
+        ),
+    ]
+
+    def evaluate(self, raw_work_minutes, breaks=None):
+        return evaluate_minimum_break(
+            raw_work_minutes,
+            breaks or [],
+            self.RULES,
+        )
+
+    def test_6_hours_requires_no_break(self):
+        result = self.evaluate(360)
+
+        self.assertEqual(result["required_break_minutes"], 0)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"], 0
+        )
+        self.assertEqual(result["accountable_minutes"], 360)
+
+    def test_6_hours_1_minute_requires_30_minutes(self):
+        result = self.evaluate(361)
+
+        self.assertEqual(result["required_break_minutes"], 30)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"], 30
+        )
+        self.assertEqual(result["accountable_minutes"], 331)
+
+    def test_9_hours_requires_30_minutes(self):
+        result = self.evaluate(540)
+
+        self.assertEqual(result["required_break_minutes"], 30)
+
+    def test_9_hours_1_minute_requires_45_minutes(self):
+        result = self.evaluate(541)
+
+        self.assertEqual(result["required_break_minutes"], 45)
+
+    def test_20_minute_break_reduces_45_minute_requirement(self):
+        result = self.evaluate(
+            600,
+            [{"minutes": 20}],
+        )
+
+        self.assertEqual(result["qualifying_break_minutes"], 20)
+        self.assertEqual(result["required_break_minutes"], 45)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"], 25
+        )
+        self.assertEqual(result["accountable_minutes"], 575)
+
+    def test_two_15_minute_breaks_both_qualify(self):
+        result = self.evaluate(
+            600,
+            [{"minutes": 15}, {"minutes": 15}],
+        )
+
+        self.assertEqual(result["qualifying_break_minutes"], 30)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"], 15
+        )
+
+    def test_14_minute_break_does_not_qualify(self):
+        result = self.evaluate(
+            600,
+            [{"minutes": 14}, {"minutes": 30}],
+        )
+
+        self.assertEqual(result["qualifying_break_minutes"], 30)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"], 15
+        )
+
+    def test_longer_real_break_causes_no_extra_deduction(self):
+        result = self.evaluate(
+            600,
+            [{"minutes": 60}],
+        )
+
+        self.assertEqual(result["qualifying_break_minutes"], 60)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"], 0
+        )
+        self.assertEqual(result["accountable_minutes"], 600)
+
+    def test_short_breaks_are_not_combined_to_qualify(self):
+        result = self.evaluate(
+            600,
+            [{"minutes": 5}, {"minutes": 10}],
+        )
+
+        self.assertEqual(result["qualifying_break_minutes"], 0)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"], 45
         )
