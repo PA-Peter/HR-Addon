@@ -2,10 +2,12 @@
 # See license.txt
 
 import frappe
-from frappe.tests import IntegrationTestCase
+from frappe.tests import IntegrationTestCase, UnitTestCase
 
-from hr_addon.hr_addon.doctype.workday.workday import date_is_in_holiday_list
-
+from hr_addon.hr_addon.doctype.workday.workday import (
+    date_is_in_holiday_list,
+    parse_employee_checkins,
+)
 
 IGNORE_TEST_RECORD_DEPENDENCIES = [
     "Employee",
@@ -14,6 +16,125 @@ IGNORE_TEST_RECORD_DEPENDENCIES = [
     "Employee Checkin",
 ]
 
+def _make_checkin(
+    name,
+    log_type,
+    timestamp,
+    skip_auto_attendance=0,
+):
+    return frappe._dict(
+        {
+            "name": name,
+            "log_type": log_type,
+            "time": timestamp,
+            "skip_auto_attendance": skip_auto_attendance,
+            "attendance": None,
+        }
+    )
+
+
+class TestEmployeeCheckinParser(UnitTestCase):
+    def test_valid_multiple_in_out_pairs_use_log_types(self):
+        checkins = [
+            _make_checkin("CI-3", "IN", "2026-09-10 13:00:00"),
+            _make_checkin("CI-4", "OUT", "2026-09-10 17:00:00"),
+            _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+            _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
+        ]
+
+        result = parse_employee_checkins(checkins)
+
+        self.assertTrue(result["is_valid"])
+        self.assertEqual(result["raw_work_minutes"], 480)
+        self.assertEqual(result["physical_break_minutes"], 60)
+        self.assertEqual(len(result["work_intervals"]), 2)
+
+    def test_sequence_starting_with_out_is_invalid(self):
+        result = parse_employee_checkins(
+            [
+                _make_checkin("CI-1", "OUT", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "IN", "2026-09-10 17:00:00"),
+            ]
+        )
+
+        self.assertFalse(result["is_valid"])
+        self.assertIn("expected IN", result["error"])
+
+    def test_double_in_is_invalid(self):
+        result = parse_employee_checkins(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "IN", "2026-09-10 12:00:00"),
+                _make_checkin("CI-3", "OUT", "2026-09-10 17:00:00"),
+            ]
+        )
+
+        self.assertFalse(result["is_valid"])
+        self.assertIn("expected OUT", result["error"])
+
+    def test_missing_out_is_invalid(self):
+        result = parse_employee_checkins(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+            ]
+        )
+
+        self.assertFalse(result["is_valid"])
+        self.assertEqual(result["error"], "Missing OUT Employee Checkin.")
+
+    def test_skip_auto_attendance_is_ignored_but_kept_for_audit(self):
+        checkins = [
+            _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+            _make_checkin(
+                "CI-X",
+                "OUT",
+                "2026-09-10 10:00:00",
+                skip_auto_attendance=1,
+            ),
+            _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
+        ]
+
+        result = parse_employee_checkins(checkins)
+
+        self.assertTrue(result["is_valid"])
+        self.assertEqual(result["raw_work_minutes"], 240)
+        self.assertEqual(len(result["audit_checkins"]), 3)
+        self.assertEqual(len(result["effective_checkins"]), 2)
+
+    def test_only_skipped_checkins_have_no_time_effect(self):
+        result = parse_employee_checkins(
+            [
+                _make_checkin(
+                    "CI-1",
+                    "IN",
+                    "2026-09-10 08:00:00",
+                    skip_auto_attendance=1,
+                ),
+                _make_checkin(
+                    "CI-2",
+                    "OUT",
+                    "2026-09-10 17:00:00",
+                    skip_auto_attendance=1,
+                ),
+            ]
+        )
+
+        self.assertTrue(result["is_valid"])
+        self.assertEqual(result["raw_work_minutes"], 0)
+        self.assertEqual(result["physical_break_minutes"], 0)
+        self.assertEqual(len(result["audit_checkins"]), 2)
+        self.assertEqual(len(result["effective_checkins"]), 0)
+
+    def test_seconds_are_discarded_without_rounding(self):
+        result = parse_employee_checkins(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:59"),
+                _make_checkin("CI-2", "OUT", "2026-09-10 09:00:01"),
+            ]
+        )
+
+        self.assertTrue(result["is_valid"])
+        self.assertEqual(result["raw_work_minutes"], 60)
 
 class TestWorkday(IntegrationTestCase):
     def setUp(self):
