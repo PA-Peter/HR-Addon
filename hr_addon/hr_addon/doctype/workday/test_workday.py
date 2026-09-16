@@ -125,7 +125,7 @@ class TestEmployeeCheckinParser(UnitTestCase):
         self.assertEqual(len(result["audit_checkins"]), 2)
         self.assertEqual(len(result["effective_checkins"]), 0)
 
-    def test_seconds_are_discarded_without_rounding(self):
+    def test_seconds_are_not_rounded_up(self):
         result = parse_employee_checkins(
             [
                 _make_checkin("CI-1", "IN", "2026-09-10 08:00:59"),
