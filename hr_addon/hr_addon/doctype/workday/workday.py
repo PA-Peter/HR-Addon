@@ -386,16 +386,6 @@ def _get_checkin_value(checkin, fieldname, default=None):
 
     return default if value is None else value
 
-
-def _minute_timestamp(value):
-    """
-    Normalize a timestamp to full-minute precision without mathematical rounding.
-    Seconds and microseconds are discarded.
-    """
-    timestamp = get_datetime(value)
-    return timestamp.replace(second=0, microsecond=0)
-
-
 def parse_employee_checkins(employee_checkins):
     """
     Parse Employee Checkins using strict IN -> OUT semantics.
@@ -457,12 +447,12 @@ def parse_employee_checkins(employee_checkins):
             )
             return result
 
-    result["first_checkin"] = _minute_timestamp(
+    result["first_checkin"] = get_datetime(
         _get_checkin_value(effective_checkins[0], "time")
     )
 
     if str(_get_checkin_value(effective_checkins[-1], "log_type", "")).upper() == "OUT":
-        result["last_checkout"] = _minute_timestamp(
+        result["last_checkout"] = get_datetime(
             _get_checkin_value(effective_checkins[-1], "time")
         )
 
@@ -477,10 +467,10 @@ def parse_employee_checkins(employee_checkins):
         checkin_in = effective_checkins[index]
         checkin_out = effective_checkins[index + 1]
 
-        interval_start = _minute_timestamp(
+        interval_start = get_datetime(
             _get_checkin_value(checkin_in, "time")
         )
-        interval_end = _minute_timestamp(
+        interval_end = get_datetime(
             _get_checkin_value(checkin_out, "time")
         )
 
