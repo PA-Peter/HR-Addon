@@ -518,6 +518,114 @@ def parse_employee_checkins(employee_checkins):
 
     return result
 
+def get_required_break_minutes(raw_work_minutes, rules):
+    """
+    Resolve required minimum break from configurable rules.
+
+    Rule boundaries use full working minutes:
+    first lower bound inclusive, following lower bounds exclusive;
+    upper bounds inclusive.
+    """
+    raw_work_minutes = max(cint(raw_work_minutes), 0)
+
+    sorted_rules = sorted(
+        rules or [],
+        key=lambda rule: (
+            flt(_get_checkin_value(rule, "from_hours", 0)),
+            flt(_get_checkin_value(rule, "to_hours"))
+            if _get_checkin_value(rule, "to_hours") is not None
+            else float("inf"),
+        ),
+    )
+
+    for index, rule in enumerate(sorted_rules):
+        from_minutes = int(
+            flt(_get_checkin_value(rule, "from_hours", 0)) * 60
+        )
+
+        to_hours = _get_checkin_value(rule, "to_hours")
+        to_minutes = (
+            int(flt(to_hours) * 60)
+            if to_hours is not None
+            else None
+        )
+
+        lower_matches = (
+            raw_work_minutes >= from_minutes
+            if index == 0
+            else raw_work_minutes > from_minutes
+        )
+        upper_matches = (
+            True
+            if to_minutes is None
+            else raw_work_minutes <= to_minutes
+        )
+
+        if lower_matches and upper_matches:
+            return max(
+                cint(
+                    _get_checkin_value(
+                        rule,
+                        "minimum_break_minutes",
+                        0,
+                    )
+                ),
+                0,
+            )
+
+    return 0
+
+
+def evaluate_minimum_break(
+    raw_work_minutes,
+    break_intervals,
+    rules,
+    qualifying_break_threshold_minutes=15,
+):
+    """
+    Evaluate the RieckMedia minimum-break model.
+
+    Physical breaks are already excluded from raw_work_minutes.
+    Only individual break intervals meeting the qualification threshold
+    count towards the statutory/configured minimum break.
+    """
+    raw_work_minutes = max(cint(raw_work_minutes), 0)
+    threshold = max(cint(qualifying_break_threshold_minutes), 0)
+
+    qualifying_break_minutes = 0
+
+    for interval in break_intervals or []:
+        minutes = max(
+            cint(_get_checkin_value(interval, "minutes", 0)),
+            0,
+        )
+
+        if minutes >= threshold:
+            qualifying_break_minutes += minutes
+
+    required_break_minutes = get_required_break_minutes(
+        raw_work_minutes,
+        rules,
+    )
+
+    automatic_break_deduction_minutes = max(
+        required_break_minutes - qualifying_break_minutes,
+        0,
+    )
+
+    accountable_minutes = max(
+        raw_work_minutes - automatic_break_deduction_minutes,
+        0,
+    )
+
+    return {
+        "qualifying_break_minutes": qualifying_break_minutes,
+        "required_break_minutes": required_break_minutes,
+        "automatic_break_deduction_minutes":
+            automatic_break_deduction_minutes,
+        "accountable_minutes": accountable_minutes,
+    }
+
 def get_employee_default_work_hour(employee, adate, skip_workday_if_no_weekly_hours=None):
     adate = getdate(adate)
     dayname = adate.strftime('%A')
