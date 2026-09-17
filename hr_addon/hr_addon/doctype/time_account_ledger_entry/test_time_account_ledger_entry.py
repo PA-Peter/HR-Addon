@@ -4,7 +4,7 @@
 import frappe
 
 from frappe.tests import IntegrationTestCase
-from frappe.utils import getdate
+from frappe.utils import getdate, get_timedelta
 
 from hr_addon.hr_addon.doctype.time_account_ledger_entry.time_account_ledger_entry import (
     ENTRY_TYPE_NEGATIVE_ADJUSTMENT,
@@ -205,8 +205,8 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
         )
 
         self.assertEqual(
-            str(reversal.effective_time),
-            str(original.effective_time),
+            get_timedelta(reversal.effective_time),
+            get_timedelta(original.effective_time),
         )
 
         self.assertEqual(
