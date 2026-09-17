@@ -151,7 +151,7 @@
    "fieldname": "workday_break_calculation_mechanism",
    "fieldtype": "Select",
    "label": "Workday break Calculation Mechanism",
-   "options": "Break Hours from Employee Checkins\nBreak Hours from Weekly Working Hours\nBreak Hours from Weekly Working Hours if Shorter breaks"
+   "options": "Break Hours from Employee Checkins\nBreak Hours from Weekly Working Hours\nBreak Hours from Weekly Working Hours if Shorter breaks\nBreak Hours from Minimum Break Rule"
   },
   {
    "default": "0",
