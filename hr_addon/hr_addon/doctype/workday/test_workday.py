@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from hr_addon.hr_addon.doctype.workday.workday import (
     MECHANISM_MINIMUM_BREAK_RULE,
+    Workday,
     date_is_in_holiday_list,
     evaluate_daily_minutes,
     evaluate_minimum_break,
@@ -140,6 +141,112 @@ class TestEmployeeCheckinParser(UnitTestCase):
 
         self.assertTrue(result["is_valid"])
         self.assertEqual(result["raw_work_minutes"], 59)
+
+class TestWorkdayFailClosedDelta(UnitTestCase):
+    def _validate_from_parsed_checkins(self, parsed_checkins):
+        workday = Workday(
+            {
+                "doctype": "Workday",
+            }
+        )
+
+        def set_actual_employee_log():
+            workday.status = (
+                "Missing Checkin"
+                if not parsed_checkins["is_valid"]
+                else ""
+            )
+            workday.first_checkin = parsed_checkins["first_checkin"]
+            workday.last_checkout = parsed_checkins["last_checkout"]
+
+            workday.target_hours = 8
+            workday.raw_work_minutes = 0
+            workday.physical_break_minutes = 0
+            workday.qualifying_break_minutes = 0
+            workday.required_break_minutes = 0
+            workday.automatic_break_deduction_minutes = 0
+            workday.accountable_minutes = 0
+
+        settings = frappe._dict(
+            workday_break_calculation_mechanism=(
+                MECHANISM_MINIMUM_BREAK_RULE
+            )
+        )
+
+        with (
+            patch.object(
+                workday,
+                "set_actual_employee_log",
+                side_effect=set_actual_employee_log,
+            ),
+            patch.object(
+                workday,
+                "date_is_in_comp_off",
+            ),
+            patch.object(
+                workday,
+                "validate_duplicate_workday",
+            ),
+            patch.object(
+                workday,
+                "set_status_for_leave_application",
+                return_value=0,
+            ),
+            patch(
+                "hr_addon.hr_addon.doctype.workday.workday."
+                "frappe.get_cached_doc",
+                return_value=settings,
+            ),
+        ):
+            workday.validate()
+
+        return workday
+
+    def test_no_checkins_do_not_create_negative_delta(self):
+        parsed = parse_employee_checkins([])
+
+        self.assertTrue(parsed["is_valid"])
+        self.assertEqual(parsed["effective_checkins"], [])
+        self.assertEqual(parsed["first_checkin"], "")
+        self.assertEqual(parsed["last_checkout"], "")
+
+        workday = self._validate_from_parsed_checkins(parsed)
+
+        self.assertEqual(workday.target_minutes, 480)
+        self.assertEqual(workday.accountable_minutes, 0)
+        self.assertEqual(workday.absence_credit_minutes, 0)
+        self.assertEqual(workday.daily_delta_minutes, 0)
+
+    def test_only_skipped_checkins_do_not_create_negative_delta(self):
+        parsed = parse_employee_checkins(
+            [
+                _make_checkin(
+                    "CI-1",
+                    "IN",
+                    "2026-09-10 08:00:00",
+                    skip_auto_attendance=1,
+                ),
+                _make_checkin(
+                    "CI-2",
+                    "OUT",
+                    "2026-09-10 17:00:00",
+                    skip_auto_attendance=1,
+                ),
+            ]
+        )
+
+        self.assertTrue(parsed["is_valid"])
+        self.assertEqual(len(parsed["audit_checkins"]), 2)
+        self.assertEqual(parsed["effective_checkins"], [])
+        self.assertEqual(parsed["first_checkin"], "")
+        self.assertEqual(parsed["last_checkout"], "")
+
+        workday = self._validate_from_parsed_checkins(parsed)
+
+        self.assertEqual(workday.target_minutes, 480)
+        self.assertEqual(workday.accountable_minutes, 0)
+        self.assertEqual(workday.absence_credit_minutes, 0)
+        self.assertEqual(workday.daily_delta_minutes, 0)
 
 class TestWorkday(IntegrationTestCase):
     def setUp(self):
