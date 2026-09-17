@@ -89,55 +89,109 @@ class Workday(Document):
 			})
 
 	def set_status_for_leave_application(self):
-	    filters = {
-        	"employee": self.employee,
-        	"from_date": ("<=", self.log_date),
-        	"to_date": (">=", self.log_date),
-        	"docstatus": 1,
-    	}
+		filters = {
+			"employee": self.employee,
+			"from_date": ("<=", self.log_date),
+			"to_date": (">=", self.log_date),
+			"docstatus": 1,
+		}
 
-    	leave_types = frappe.get_all(
-	        "Leave Type",
-        	filters={"is_compensatory": 1},
-        	pluck="name",
-    	)
+		leave_types = frappe.get_all(
+			"Leave Type",
+			filters={"is_compensatory": 1},
+			pluck="name",
+		)
 
-    	if leave_types:
-	        filters["leave_type"] = ["not in", leave_types]
+		if leave_types:
+			filters["leave_type"] = ["not in", leave_types]
 
-    	leave_application = frappe.db.exists(
-	        "Leave Application",
-        	filters,
-    	)
+		leave_application = frappe.db.exists(
+			"Leave Application",
+			filters,
+		)
 
-    	if not leave_application:
-	        return 0
+		if not leave_application:
+			return 0
 
-	    half_day, half_day_date = frappe.db.get_value(
-        	"Leave Application",
-        	leave_application,
-        	["half_day", "half_day_date"],
-    	)
+		half_day, half_day_date = frappe.db.get_value(
+			"Leave Application",
+			leave_application,
+			["half_day", "half_day_date"],
+		)
 
-    	is_half_day_for_this_date = (
-	        half_day
-        	and (
-	            not half_day_date
-            	or getdate(half_day_date) == getdate(self.log_date)
-        	)
-    	)
+		is_half_day_for_this_date = (
+			half_day
+			and (
+				not half_day_date
+				or getdate(half_day_date) == getdate(self.log_date)
+			)
+		)
 
-    	target_minutes = max(
-	        int(flt(self.target_hours or 0) * 60),
-        	0,
-    	)
+		target_minutes = max(
+			int(flt(self.target_hours or 0) * 60),
+			0,
+		)
 
-    	if is_half_day_for_this_date:
-	        self.status = "Half Day"
-        	return target_minutes // 2
+		if is_half_day_for_this_date:
+			self.status = "Half Day"
+			return target_minutes // 2
 
-	    self.status = "On Leave"
-	    return target_minutes
+		self.status = "On Leave"
+		return target_minutes
+
+	def finalize_minute_evaluation(
+		self,
+		absence_credit_cap_minutes=0,
+	):
+		self.target_minutes = max(
+			int(flt(self.target_hours or 0) * 60),
+			0,
+		)
+
+		hr_addon_settings = frappe.get_cached_doc(
+			"HR Addon Settings"
+		)
+
+		if (
+			hr_addon_settings.workday_break_calculation_mechanism
+			!= MECHANISM_MINIMUM_BREAK_RULE
+		):
+			self.absence_credit_minutes = 0
+			self.daily_delta_minutes = 0
+			return
+
+		result = evaluate_daily_minutes(
+			target_minutes=self.target_minutes,
+			accountable_minutes=self.accountable_minutes,
+			absence_credit_cap_minutes=absence_credit_cap_minutes,
+			delta_is_valid=self.status != "Missing Checkin",
+		)
+
+		self.absence_credit_minutes = result[
+			"absence_credit_minutes"
+		]
+		self.daily_delta_minutes = result[
+			"daily_delta_minutes"
+		]
+
+		# Legacy hour fields are display/compatibility values only.
+		self.hours_worked = flt(
+			self.raw_work_minutes / 60.0
+		)
+		self.break_hours = flt(
+			(
+				self.physical_break_minutes
+				+ self.automatic_break_deduction_minutes
+			)
+			/ 60.0
+		)
+		self.expected_break_hours = flt(
+			self.required_break_minutes / 60.0
+		)
+		self.actual_working_hours = flt(
+			self.accountable_minutes / 60.0
+		)
+		
 	def date_is_in_comp_off(self):
 		leave_types = frappe.get_all("Leave Type", filters={"is_compensatory": 1}, pluck="name")
 		if not leave_types:
@@ -697,59 +751,6 @@ def evaluate_daily_minutes(
         "daily_delta_minutes": daily_delta_minutes,
     }
 
-def finalize_minute_evaluation(
-    self,
-    absence_credit_cap_minutes=0,
-):
-    self.target_minutes = max(
-        int(flt(self.target_hours or 0) * 60),
-        0,
-    )
-
-    hr_addon_settings = frappe.get_cached_doc(
-        "HR Addon Settings"
-    )
-
-    if (
-        hr_addon_settings.workday_break_calculation_mechanism
-        != MECHANISM_MINIMUM_BREAK_RULE
-    ):
-        self.absence_credit_minutes = 0
-        self.daily_delta_minutes = 0
-        return
-
-    result = evaluate_daily_minutes(
-        target_minutes=self.target_minutes,
-        accountable_minutes=self.accountable_minutes,
-        absence_credit_cap_minutes=absence_credit_cap_minutes,
-        delta_is_valid=self.status != "Missing Checkin",
-    )
-
-    self.absence_credit_minutes = result[
-        "absence_credit_minutes"
-    ]
-    self.daily_delta_minutes = result[
-        "daily_delta_minutes"
-    ]
-
-    # Legacy hour fields are display/compatibility values only.
-    self.hours_worked = flt(
-        self.raw_work_minutes / 60.0
-    )
-    self.break_hours = flt(
-        (
-            self.physical_break_minutes
-            + self.automatic_break_deduction_minutes
-        )
-        / 60.0
-    )
-    self.expected_break_hours = flt(
-        self.required_break_minutes / 60.0
-    )
-    self.actual_working_hours = flt(
-        self.accountable_minutes / 60.0
-    )
-
 def get_employee_default_work_hour(employee, adate, skip_workday_if_no_weekly_hours=None):
     adate = getdate(adate)
     dayname = adate.strftime('%A')
@@ -766,7 +767,7 @@ def get_employee_default_work_hour(employee, adate, skip_workday_if_no_weekly_ho
             WeeklyWorkingHours.employee,
             WeeklyWorkingHours.valid_from,
             WeeklyWorkingHours.valid_to,
-            WeeklyWorkingHours.no_break_hours,
+            WeeklyWorkingHours.disable_minimum_break_rule,
             WeeklyWorkingHours.set_target_hours_to_zero_when_date_is_holiday,
             DailyHoursDetail.day,
             DailyHoursDetail.hours,
@@ -860,100 +861,123 @@ def get_holiday_not_workday_log(aemployee, adate, employee_default_work_hour):
 
 
 @frappe.whitelist()
-def get_actual_employee_log(aemployee, adate, skip_workday_if_no_weekly_hours=None):
-    employee_checkins = get_employee_checkin(aemployee, adate)
-    employee_default_work_hour = get_employee_default_work_hour(
-        aemployee, adate, skip_workday_if_no_weekly_hours
+def get_actual_employee_log(
+    aemployee,
+    adate,
+    skip_workday_if_no_weekly_hours=None,
+):
+    employee_checkins = get_employee_checkin(
+        aemployee,
+        adate,
     )
-    # If None, employee has no weekly hours and skip is enabled
+
+    employee_default_work_hour = get_employee_default_work_hour(
+        aemployee,
+        adate,
+        skip_workday_if_no_weekly_hours,
+    )
+
+    # If None, employee has no weekly hours and skip is enabled.
     if employee_default_work_hour is None:
         return None
 
-    is_date_in_holiday_list = date_is_in_holiday_list(aemployee, adate)
-    no_break_hours = employee_default_work_hour.no_break_hours
+    is_date_in_holiday_list = date_is_in_holiday_list(
+        aemployee,
+        adate,
+    )
+
+    disable_minimum_break_rule = cint(
+        employee_default_work_hour.disable_minimum_break_rule
+    )
+
     is_target_hours_zero_on_holiday = (
         employee_default_work_hour.set_target_hours_to_zero_when_date_is_holiday
     )
+
     is_holiday_with_zero_target_hours = (
-        is_target_hours_zero_on_holiday and is_date_in_holiday_list
+        is_target_hours_zero_on_holiday
+        and is_date_in_holiday_list
     )
 
-    # allow_workdays_on_holidays only changes whether checkin data is processed on holidays.
-    # Holidays without processed checkins always yield Not Workday (see get_holiday_not_workday_log).
-    allow_workdays_on_holidays = (
-        frappe.db.get_single_value("HR Addon Settings", "allow_workdays_on_holidays")
+    # allow_workdays_on_holidays only controls whether checkin data is
+    # evaluated on holidays. Without evaluated checkins, holidays remain
+    # Not Workday.
+    allow_workdays_on_holidays = cint(
+        frappe.db.get_single_value(
+            "HR Addon Settings",
+            "allow_workdays_on_holidays",
+        )
         or 0
     )
 
+    # Holiday handling.
     if is_date_in_holiday_list:
         if not allow_workdays_on_holidays:
-            return get_holiday_not_workday_log(aemployee, adate, employee_default_work_hour)
+            return get_holiday_not_workday_log(
+                aemployee,
+                adate,
+                employee_default_work_hour,
+            )
+
         if employee_checkins:
             new_workday = get_workday(
-                employee_checkins, employee_default_work_hour, no_break_hours
+                employee_checkins,
+                employee_default_work_hour,
+                disable_minimum_break_rule,
             )
+
             if is_holiday_with_zero_target_hours:
                 new_workday["target_hours"] = 0
                 new_workday["expected_break_hours"] = 0
+
             return new_workday
-        return get_holiday_not_workday_log(aemployee, adate, employee_default_work_hour)
 
-    if employee_checkins:
-        new_workday = get_workday(
-            employee_checkins, employee_default_work_hour, no_break_hours
+        return get_holiday_not_workday_log(
+            aemployee,
+            adate,
+            employee_default_work_hour,
         )
-        if is_holiday_with_zero_target_hours:
-            new_workday["target_hours"] = 0
-            new_workday["expected_break_hours"] = 0
-        return new_workday
-    else:
-        view_employee_attendance = get_employee_attendance(aemployee, adate)
 
-        break_minutes = employee_default_work_hour.break_minutes
-        expected_break_hours = flt(break_minutes / 60)
+    # Normal working day with checkins.
+    if employee_checkins:
+        return get_workday(
+            employee_checkins,
+            employee_default_work_hour,
+            disable_minimum_break_rule,
+        )
 
-        if is_holiday_with_zero_target_hours:
-            new_workday = {
-                "target_hours": 0,
-                "break_minutes": employee_default_work_hour.break_minutes,
-                "actual_working_hours": 0,
-                "hours_worked": 0,
-                "nbreak": 0,
-                "attendance": view_employee_attendance[0].name
-                if len(view_employee_attendance) > 0
-                else "",
-                "status": view_employee_attendance[0].status
-                if len(view_employee_attendance) > 0
-                else "",
-                "break_hours": 0,
-                "employee_checkins": [],
-                "first_checkin": "",
-                "last_checkout": "",
-                "expected_break_hours": 0,
-            }
-        else:
-            new_workday = {
-                "target_hours": employee_default_work_hour.hours,
-                "break_minutes": employee_default_work_hour.break_minutes,
-                "actual_working_hours": 0,
-                "manual_workday": 1,
-                "hours_worked": 0,
-                "nbreak": 0,
-                "attendance": view_employee_attendance[0].name
-                if len(view_employee_attendance) > 0
-                else "",
-                "status": view_employee_attendance[0].status
-                if len(view_employee_attendance) > 0
-                else "",
-                "break_hours": 0,
-                "employee_checkins": [],
-                "first_checkin": "",
-                "last_checkout": "",
-                "expected_break_hours": expected_break_hours,
-            }
+    # Normal working day without checkins.
+    view_employee_attendance = get_employee_attendance(
+        aemployee,
+        adate,
+    )
 
-    return new_workday
+    break_minutes = employee_default_work_hour.break_minutes
+    expected_break_hours = flt(break_minutes / 60)
 
+    return {
+        "target_hours": employee_default_work_hour.hours,
+        "break_minutes": break_minutes,
+        "actual_working_hours": 0,
+        "manual_workday": 1,
+        "hours_worked": 0,
+        "nbreak": 0,
+        "attendance": (
+            view_employee_attendance[0].name
+            if view_employee_attendance
+            else ""
+        ),
+        "status": (
+            view_employee_attendance[0].status
+            if view_employee_attendance
+            else ""
+        ),
+        "break_hours": 0,
+        "employee_checkins": [],
+        "first_checkin": "",
+        "last_checkout": "",
+        "expected_break_hours": expected_break_hours,
+    }
 
 @frappe.whitelist()
 def set_attendance_in_employee_checkins(employee_checkins, attendance):
@@ -1037,7 +1061,11 @@ def calculate_actual_working_hours(hours_worked, break_hours, default_break_hour
 		else:
 			return flt(hours_worked - default_break_hours)
 
-def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
+def get_workday(
+    employee_checkins,
+    employee_default_work_hour,
+    disable_minimum_break_rule=False,
+):
     hr_addon_settings = frappe.get_cached_doc("HR Addon Settings")
     mechanism = hr_addon_settings.workday_break_calculation_mechanism
 
@@ -1053,10 +1081,15 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
     parsed_checkins = parse_employee_checkins(employee_checkins)
     effective_checkins = parsed_checkins["effective_checkins"]
 
-    # Invalid IN/OUT sequence: no guessed working time or minimum break.
+    # Invalid IN/OUT sequence:
+    # no guessed working time and no minimum-break calculation.
     if not parsed_checkins["is_valid"]:
         attendance = (
-            _get_checkin_value(effective_checkins[0], "attendance", "")
+            _get_checkin_value(
+                effective_checkins[0],
+                "attendance",
+                "",
+            )
             if effective_checkins
             else ""
         )
@@ -1077,13 +1110,11 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
             "break_hours": 0.0,
             "first_checkin": parsed_checkins["first_checkin"],
             "last_checkout": parsed_checkins["last_checkout"],
-            # Preserve every raw checkin, including skip_auto_attendance=1,
-            # for auditability.
             "employee_checkins": employee_checkins,
         }
 
-    # All existing checkins may be logically disabled. In that case they have
-    # no working-time effect but remain visible in the Workday audit data.
+    # All checkins may be disabled via skip_auto_attendance.
+    # They remain audit data, but have no working-time effect.
     if not effective_checkins:
         return {
             "target_hours": target_hours,
@@ -1107,59 +1138,85 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
 
     # Integer minutes are the authoritative calculation basis.
     raw_work_minutes = parsed_checkins["raw_work_minutes"]
-    physical_break_minutes = parsed_checkins["physical_break_minutes"]
+    physical_break_minutes = parsed_checkins[
+        "physical_break_minutes"
+    ]
     on_site_minutes = parsed_checkins["on_site_minutes"]
 
     # Legacy HR-Addon fields remain hours for compatibility.
     hours_worked = flt(raw_work_minutes / 60.0)
-    break_from_checkins = flt(physical_break_minutes / 60.0)
+    break_from_checkins = flt(
+        physical_break_minutes / 60.0
+    )
     total_duration = flt(on_site_minutes / 60.0)
 
     minimum_break_evaluation = None
 
     if mechanism == MECHANISM_MINIMUM_BREAK_RULE:
         qualifying_break_threshold = (
- 			cint(
-				getattr(
-					hr_addon_settings,
-					"minimum_qualifying_break_minutes",
-					0,
-				)
-			)
-			or 15
-		)
-		
-        minimum_break_evaluation = evaluate_minimum_break(
-            raw_work_minutes=raw_work_minutes,
-            break_intervals=parsed_checkins["break_intervals"],
-            rules=(
+            cint(
+                getattr(
+                    hr_addon_settings,
+                    "minimum_qualifying_break_minutes",
+                    0,
+                )
+            )
+            or 15
+        )
+
+        # Explicit exemption, e.g. entrepreneur:
+        # physical breaks remain real non-working time, but there is
+        # no automatic minimum-break requirement or deduction.
+        minimum_break_rules = (
+            []
+            if cint(disable_minimum_break_rule)
+            else (
                 getattr(
                     hr_addon_settings,
                     "minimum_break_rule",
                     None,
                 )
                 or []
-            ),
-            qualifying_break_threshold_minutes=qualifying_break_threshold,
+            )
         )
 
-        required_break_minutes = minimum_break_evaluation[
-            "required_break_minutes"
-        ]
-        automatic_break_deduction_minutes = minimum_break_evaluation[
-            "automatic_break_deduction_minutes"
-        ]
-        accountable_minutes = minimum_break_evaluation[
-            "accountable_minutes"
-        ]
+        minimum_break_evaluation = evaluate_minimum_break(
+            raw_work_minutes=raw_work_minutes,
+            break_intervals=parsed_checkins[
+                "break_intervals"
+            ],
+            rules=minimum_break_rules,
+            qualifying_break_threshold_minutes=(
+                qualifying_break_threshold
+            ),
+        )
 
-        # raw_work_minutes already excludes every physical OUT -> IN break.
-        # Therefore only the missing statutory/configured break is deducted
-        # from raw work.
-        actual_working_hours = flt(accountable_minutes / 60.0)
+        required_break_minutes = (
+            minimum_break_evaluation[
+                "required_break_minutes"
+            ]
+        )
+
+        automatic_break_deduction_minutes = (
+            minimum_break_evaluation[
+                "automatic_break_deduction_minutes"
+            ]
+        )
+
+        accountable_minutes = (
+            minimum_break_evaluation[
+                "accountable_minutes"
+            ]
+        )
+
+        # raw_work_minutes already excludes every physical OUT -> IN
+        # break. Therefore only the missing minimum break is deducted.
+        actual_working_hours = flt(
+            accountable_minutes / 60.0
+        )
 
         # Legacy display field:
-        # total unpaid interruption = physical break + automatic deduction.
+        # physical interruption + automatic additional deduction.
         break_hours = flt(
             (
                 physical_break_minutes
@@ -1168,18 +1225,19 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
             / 60.0
         )
 
-        expected_break_hours = flt(required_break_minutes / 60.0)
-
-        # The legacy no_break_hours flag intentionally has no effect here.
-        # Its old "< 6 target hours" semantics are replaced by the central
-        # minimum-break rule.
+        expected_break_hours = flt(
+            required_break_minutes / 60.0
+        )
 
     else:
-        # Preserve the existing v16 mechanisms unchanged.
+        # Preserve legacy v16 mechanisms unchanged.
         expected_break_hours = default_break_hours
 
         if is_break_from_checkins_with_swapped_hours:
-            total_duration, hours_worked = hours_worked, total_duration
+            total_duration, hours_worked = (
+                hours_worked,
+                total_duration,
+            )
 
         if mechanism == "Break Hours from Employee Checkins":
             break_hours = break_from_checkins
@@ -1187,7 +1245,10 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
         elif mechanism == "Break Hours from Weekly Working Hours":
             break_hours = default_break_hours
 
-        elif mechanism == "Break Hours from Weekly Working Hours if Shorter breaks":
+        elif (
+            mechanism
+            == "Break Hours from Weekly Working Hours if Shorter breaks"
+        ):
             if break_from_checkins <= default_break_hours:
                 break_hours = default_break_hours
             else:
@@ -1202,8 +1263,11 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
             default_break_hours=default_break_hours,
             mechanism=mechanism,
             total_duration=total_duration,
-            is_swapped=is_break_from_checkins_with_swapped_hours,
-            no_break_hours=no_break_hours,
+            is_swapped=(
+                is_break_from_checkins_with_swapped_hours
+            ),
+            # The old "< 6 hours no break" flag is no longer used.
+            no_break_hours=False,
             hours_worked_threshold=6,
         )
 
@@ -1212,8 +1276,13 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
         "attendance",
         "",
     )
+
     status = (
-        frappe.db.get_value("Attendance", attendance, "status")
+        frappe.db.get_value(
+            "Attendance",
+            attendance,
+            "status",
+        )
         if attendance
         else ""
     )
@@ -1228,36 +1297,43 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
         "attendance": attendance,
         "status": status,
         "break_hours": break_hours,
-        "first_checkin": parsed_checkins["first_checkin"],
-        "last_checkout": parsed_checkins["last_checkout"],
+        "first_checkin": parsed_checkins[
+            "first_checkin"
+        ],
+        "last_checkout": parsed_checkins[
+            "last_checkout"
+        ],
         "employee_checkins": employee_checkins,
     }
 
-    # Expose the new authoritative minute values already at calculation level.
-    # Persistence in Workday fields follows in a separate schema step.
+    # Authoritative minute values are exposed only for the new
+    # minimum-break calculation path.
     if minimum_break_evaluation is not None:
         result.update(
             {
                 "raw_work_minutes": raw_work_minutes,
-                "physical_break_minutes": physical_break_minutes,
-                "qualifying_break_minutes": minimum_break_evaluation[
-                    "qualifying_break_minutes"
-                ],
-                "required_break_minutes": minimum_break_evaluation[
-                    "required_break_minutes"
-                ],
+                "physical_break_minutes":
+                    physical_break_minutes,
+                "qualifying_break_minutes":
+                    minimum_break_evaluation[
+                        "qualifying_break_minutes"
+                    ],
+                "required_break_minutes":
+                    minimum_break_evaluation[
+                        "required_break_minutes"
+                    ],
                 "automatic_break_deduction_minutes":
                     minimum_break_evaluation[
                         "automatic_break_deduction_minutes"
                     ],
-                "accountable_minutes": minimum_break_evaluation[
-                    "accountable_minutes"
-                ],
+                "accountable_minutes":
+                    minimum_break_evaluation[
+                        "accountable_minutes"
+                    ],
             }
         )
 
     return result
-
 def get_employee_attendance(employee,atime):
     Attendance = frappe.qb.DocType('Attendance')
     attendance_list = (
