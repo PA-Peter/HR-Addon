@@ -19,7 +19,8 @@ class Workday(Document):
 		self.set_actual_employee_log()
 		self.date_is_in_comp_off()
 		self.validate_duplicate_workday()
-		self.set_status_for_leave_application()
+		absence_credit_cap_minutes = self.set_status_for_leave_application()
+		self.finalize_minute_evaluation(absence_credit_cap_minutes)
 
 	def after_insert(self):
 		"""Show a concise message after creating a Workday, indicating its status."""
@@ -88,36 +89,55 @@ class Workday(Document):
 			})
 
 	def set_status_for_leave_application(self):
-		filters = {
-			"employee": self.employee,
-			"from_date": ("<=", self.log_date),
-			"to_date": (">=", self.log_date),
-			"docstatus": 1
-		}
-		leave_types = frappe.get_all("Leave Type", filters={"is_compensatory": 1}, pluck="name")
-		if leave_types:
-			filters["leave_type"] = ['not in', leave_types]
+	    filters = {
+        	"employee": self.employee,
+        	"from_date": ("<=", self.log_date),
+        	"to_date": (">=", self.log_date),
+        	"docstatus": 1,
+    	}
 
-		leave_application = frappe.db.exists("Leave Application", filters)
-		if leave_application:
-			half_day, half_day_date = frappe.db.get_value("Leave Application", leave_application, ["half_day", "half_day_date"])
-			
-			# Apply half-day logic only if this specific date is the half day
-			# For single-day leaves, half_day_date is None
-			is_half_day_for_this_date = half_day and (not half_day_date or getdate(half_day_date) == getdate(self.log_date))
-			
-			if is_half_day_for_this_date:
-				self.target_hours = self.target_hours / 2
-				self.expected_break_hours = self.expected_break_hours / 2
-				if self.hours_worked == 0:
-					self.actual_working_hours = -self.target_hours
-				self.status = "Half Day"
-			else:
-				self.target_hours = 0
-				self.expected_break_hours = 0
-				self.actual_working_hours = 0
-				self.status = "On Leave"
+    	leave_types = frappe.get_all(
+	        "Leave Type",
+        	filters={"is_compensatory": 1},
+        	pluck="name",
+    	)
 
+    	if leave_types:
+	        filters["leave_type"] = ["not in", leave_types]
+
+    	leave_application = frappe.db.exists(
+	        "Leave Application",
+        	filters,
+    	)
+
+    	if not leave_application:
+	        return 0
+
+	    half_day, half_day_date = frappe.db.get_value(
+        	"Leave Application",
+        	leave_application,
+        	["half_day", "half_day_date"],
+    	)
+
+    	is_half_day_for_this_date = (
+	        half_day
+        	and (
+	            not half_day_date
+            	or getdate(half_day_date) == getdate(self.log_date)
+        	)
+    	)
+
+    	target_minutes = max(
+	        int(flt(self.target_hours or 0) * 60),
+        	0,
+    	)
+
+    	if is_half_day_for_this_date:
+	        self.status = "Half Day"
+        	return target_minutes // 2
+
+	    self.status = "On Leave"
+	    return target_minutes
 	def date_is_in_comp_off(self):
 		leave_types = frappe.get_all("Leave Type", filters={"is_compensatory": 1}, pluck="name")
 		if not leave_types:
@@ -644,6 +664,91 @@ def evaluate_minimum_break(
             automatic_break_deduction_minutes,
         "accountable_minutes": accountable_minutes,
     }
+def evaluate_daily_minutes(
+    target_minutes,
+    accountable_minutes,
+    absence_credit_cap_minutes=0,
+    delta_is_valid=True,
+):
+    target_minutes = max(cint(target_minutes), 0)
+    accountable_minutes = max(cint(accountable_minutes), 0)
+
+    absence_credit_cap_minutes = min(
+        max(cint(absence_credit_cap_minutes), 0),
+        target_minutes,
+    )
+
+    absence_credit_minutes = min(
+        absence_credit_cap_minutes,
+        max(target_minutes - accountable_minutes, 0),
+    )
+
+    daily_delta_minutes = (
+        accountable_minutes
+        + absence_credit_minutes
+        - target_minutes
+        if delta_is_valid
+        else 0
+    )
+
+    return {
+        "target_minutes": target_minutes,
+        "absence_credit_minutes": absence_credit_minutes,
+        "daily_delta_minutes": daily_delta_minutes,
+    }
+
+def finalize_minute_evaluation(
+    self,
+    absence_credit_cap_minutes=0,
+):
+    self.target_minutes = max(
+        int(flt(self.target_hours or 0) * 60),
+        0,
+    )
+
+    hr_addon_settings = frappe.get_cached_doc(
+        "HR Addon Settings"
+    )
+
+    if (
+        hr_addon_settings.workday_break_calculation_mechanism
+        != MECHANISM_MINIMUM_BREAK_RULE
+    ):
+        self.absence_credit_minutes = 0
+        self.daily_delta_minutes = 0
+        return
+
+    result = evaluate_daily_minutes(
+        target_minutes=self.target_minutes,
+        accountable_minutes=self.accountable_minutes,
+        absence_credit_cap_minutes=absence_credit_cap_minutes,
+        delta_is_valid=self.status != "Missing Checkin",
+    )
+
+    self.absence_credit_minutes = result[
+        "absence_credit_minutes"
+    ]
+    self.daily_delta_minutes = result[
+        "daily_delta_minutes"
+    ]
+
+    # Legacy hour fields are display/compatibility values only.
+    self.hours_worked = flt(
+        self.raw_work_minutes / 60.0
+    )
+    self.break_hours = flt(
+        (
+            self.physical_break_minutes
+            + self.automatic_break_deduction_minutes
+        )
+        / 60.0
+    )
+    self.expected_break_hours = flt(
+        self.required_break_minutes / 60.0
+    )
+    self.actual_working_hours = flt(
+        self.accountable_minutes / 60.0
+    )
 
 def get_employee_default_work_hour(employee, adate, skip_workday_if_no_weekly_hours=None):
     adate = getdate(adate)
