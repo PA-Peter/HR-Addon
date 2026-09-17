@@ -54,6 +54,24 @@ class Workday(Document):
 		self.expected_break_hours = new_workday_dict.get("expected_break_hours")
 		self.manual_workday = new_workday_dict.get("manual_workday")
 		self.actual_working_hours = new_workday_dict.get("actual_working_hours")
+		self.raw_work_minutes = cint(
+			new_workday_dict.get("raw_work_minutes") or 0
+		)
+		self.physical_break_minutes = cint(
+			new_workday_dict.get("physical_break_minutes") or 0
+		)
+		self.qualifying_break_minutes = cint(
+			new_workday_dict.get("qualifying_break_minutes") or 0
+		)
+		self.required_break_minutes = cint(
+			new_workday_dict.get("required_break_minutes") or 0
+		)
+		self.automatic_break_deduction_minutes = cint(
+			new_workday_dict.get("automatic_break_deduction_minutes") or 0
+		)
+		self.accountable_minutes = cint(
+			new_workday_dict.get("accountable_minutes") or 0
+		)
 		self.first_checkin = new_workday_dict.get("first_checkin")
 		self.last_checkout = new_workday_dict.get("last_checkout")
 		self.attendance = new_workday_dict.get("attendance")
