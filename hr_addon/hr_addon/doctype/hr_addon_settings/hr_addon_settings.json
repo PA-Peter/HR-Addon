@@ -187,7 +187,7 @@
    "fieldname": "allow_workdays_on_holidays",
    "fieldtype": "Check",
    "label": "Allow Workdays on Holidays"
-  }
+  },
   {
    "fieldname": "break_rules_tab",
    "fieldtype": "Tab Break",
@@ -199,7 +199,7 @@
    "fieldtype": "Table",
    "label": "Minimum Break Rule",
    "options": "Minimum Break Rule"
-  }
+  },
   {
    "default": "15",
    "description": "Minimum duration in minutes for an individual break interval to count towards the required minimum break.",
