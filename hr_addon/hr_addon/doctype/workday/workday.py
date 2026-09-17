@@ -14,7 +14,8 @@ from hrms.utils.holiday_list import get_holiday_list_for_employee
 import traceback
 MECHANISM_MINIMUM_BREAK_RULE = "Break Hours from Minimum Break Rule"
 
-class Workday(Document):	def validate(self):
+class Workday(Document):
+	def validate(self):
 		self.set_actual_employee_log()
 		self.validate_duplicate_workday()
 
