@@ -22,6 +22,9 @@
   "workday_break_calculation_mechanism",
   "swap_hours_worked_and_actual_working_hours",
   "workday_break_calculation_logic",
+  "break_rules_tab",
+  "minimum_qualifying_break_minutes",
+  "minimum_break_rule",
   "notification_section",
   "anniversary_notification_email_list",
   "enable_work_anniversaries_notification",
@@ -184,6 +187,25 @@
    "fieldname": "allow_workdays_on_holidays",
    "fieldtype": "Check",
    "label": "Allow Workdays on Holidays"
+  }
+  {
+   "fieldname": "break_rules_tab",
+   "fieldtype": "Tab Break",
+   "label": "Minimum Break Rules"
+  },
+  {
+   "description": "Configurable minimum-break rules evaluated from actual raw working time.",
+   "fieldname": "minimum_break_rule",
+   "fieldtype": "Table",
+   "label": "Minimum Break Rule",
+   "options": "Minimum Break Rule"
+  }
+  {
+   "default": "15",
+   "description": "Minimum duration in minutes for an individual break interval to count towards the required minimum break.",
+   "fieldname": "minimum_qualifying_break_minutes",
+   "fieldtype": "Int",
+   "label": "Minimum Qualifying Break Minutes"
   }
  ],
  "index_web_pages_for_search": 1,
