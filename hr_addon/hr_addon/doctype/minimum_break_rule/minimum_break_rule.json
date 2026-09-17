@@ -1,0 +1,39 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "from_hours",
+  "to_hours",
+  "minimum_break_minutes"
+ ],
+ "fields": [
+  {
+   "fieldname": "from_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "From Hours"
+  },
+  {
+   "fieldname": "to_hours",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "To Hours"
+  },
+  {
+   "fieldname": "minimum_break_minutes",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Minimum Break Minutes"
+  }
+ ],
+ "grid_page_length": 50,
+ "istable": 1,
+ "module": "HR Addon",
+ "name": "Minimum Break Rule",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20
+}
