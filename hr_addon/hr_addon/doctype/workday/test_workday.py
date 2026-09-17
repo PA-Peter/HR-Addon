@@ -3,10 +3,13 @@
 
 import frappe
 from frappe.tests import IntegrationTestCase, UnitTestCase
+from unittest.mock import patch
 
 from hr_addon.hr_addon.doctype.workday.workday import (
+    MECHANISM_MINIMUM_BREAK_RULE,
     date_is_in_holiday_list,
     evaluate_minimum_break,
+    get_workday,
     parse_employee_checkins,
 )
 
@@ -328,3 +331,165 @@ class TestMinimumBreakEvaluation(UnitTestCase):
         self.assertEqual(
             result["automatic_break_deduction_minutes"], 45
         )
+class TestWorkdayMinimumBreakRouting(UnitTestCase):
+    RULES = [
+        frappe._dict(
+            from_hours=0,
+            to_hours=6,
+            minimum_break_minutes=0,
+        ),
+        frappe._dict(
+            from_hours=6,
+            to_hours=9,
+            minimum_break_minutes=30,
+        ),
+        frappe._dict(
+            from_hours=9,
+            to_hours=None,
+            minimum_break_minutes=45,
+        ),
+    ]
+
+    def _settings(self, qualifying_break_minutes=15):
+        return frappe._dict(
+            workday_break_calculation_mechanism=MECHANISM_MINIMUM_BREAK_RULE,
+            swap_hours_worked_and_actual_working_hours=0,
+            minimum_qualifying_break_minutes=qualifying_break_minutes,
+            minimum_break_rule=self.RULES,
+        )
+
+    def _work_hours(self):
+        return frappe._dict(
+            hours=8,
+            break_minutes=30,
+        )
+
+    def _get_workday(
+        self,
+        checkins,
+        qualifying_break_minutes=15,
+        no_break_hours=False,
+    ):
+        with patch(
+            "hr_addon.hr_addon.doctype.workday.workday."
+            "frappe.get_cached_doc",
+            return_value=self._settings(qualifying_break_minutes),
+        ):
+            return get_workday(
+                checkins,
+                self._work_hours(),
+                no_break_hours,
+            )
+
+    def test_minimum_break_route_does_not_double_deduct_physical_break(self):
+        result = self._get_workday(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
+                _make_checkin("CI-3", "IN", "2026-09-10 12:20:00"),
+                _make_checkin("CI-4", "OUT", "2026-09-10 18:20:00"),
+            ]
+        )
+
+        self.assertEqual(result["raw_work_minutes"], 600)
+        self.assertEqual(result["physical_break_minutes"], 20)
+        self.assertEqual(result["qualifying_break_minutes"], 20)
+        self.assertEqual(result["required_break_minutes"], 45)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"],
+            25,
+        )
+        self.assertEqual(result["accountable_minutes"], 575)
+
+        self.assertAlmostEqual(
+            result["actual_working_hours"],
+            575 / 60,
+        )
+        self.assertAlmostEqual(result["break_hours"], 45 / 60)
+        self.assertAlmostEqual(
+            result["expected_break_hours"],
+            45 / 60,
+        )
+
+    def test_long_physical_break_has_no_automatic_deduction(self):
+        result = self._get_workday(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
+                _make_checkin("CI-3", "IN", "2026-09-10 13:00:00"),
+                _make_checkin("CI-4", "OUT", "2026-09-10 19:00:00"),
+            ]
+        )
+
+        self.assertEqual(result["raw_work_minutes"], 600)
+        self.assertEqual(result["physical_break_minutes"], 60)
+        self.assertEqual(result["qualifying_break_minutes"], 60)
+        self.assertEqual(result["required_break_minutes"], 45)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"],
+            0,
+        )
+        self.assertEqual(result["accountable_minutes"], 600)
+
+        self.assertAlmostEqual(result["actual_working_hours"], 10)
+        self.assertAlmostEqual(result["break_hours"], 1)
+
+    def test_qualification_threshold_comes_from_settings(self):
+        result = self._get_workday(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
+                _make_checkin("CI-3", "IN", "2026-09-10 12:15:00"),
+                _make_checkin("CI-4", "OUT", "2026-09-10 18:15:00"),
+            ],
+            qualifying_break_minutes=20,
+        )
+
+        self.assertEqual(result["physical_break_minutes"], 15)
+        self.assertEqual(result["qualifying_break_minutes"], 0)
+        self.assertEqual(result["required_break_minutes"], 45)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"],
+            45,
+        )
+        self.assertEqual(result["accountable_minutes"], 555)
+
+    def test_legacy_no_break_hours_does_not_bypass_minimum_break_rule(self):
+        result = self._get_workday(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "OUT", "2026-09-10 14:01:00"),
+            ],
+            no_break_hours=True,
+        )
+
+        self.assertEqual(result["raw_work_minutes"], 361)
+        self.assertEqual(result["required_break_minutes"], 30)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"],
+            30,
+        )
+        self.assertEqual(result["accountable_minutes"], 331)
+        self.assertAlmostEqual(
+            result["actual_working_hours"],
+            331 / 60,
+        )
+
+    def test_zero_qualification_setting_falls_back_to_15_minutes(self):
+        result = self._get_workday(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
+                _make_checkin("CI-3", "IN", "2026-09-10 12:10:00"),
+                _make_checkin("CI-4", "OUT", "2026-09-10 18:10:00"),
+            ],
+            qualifying_break_minutes=0,
+        )
+
+        self.assertEqual(result["physical_break_minutes"], 10)
+        self.assertEqual(result["qualifying_break_minutes"], 0)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"],
+            45,
+        )
+    }
