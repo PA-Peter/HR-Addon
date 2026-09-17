@@ -291,3 +291,204 @@ def get_time_account_balance(employee):
         return 0
 
     return cint(result[0][0])
+
+
+def _get_workday_for_update(workday_name):
+    if not workday_name:
+        frappe.throw(_("Workday is required."))
+
+    rows = frappe.db.sql(
+        """
+        SELECT
+            name,
+            employee,
+            log_date,
+            daily_delta_minutes
+        FROM
+            `tabWorkday`
+        WHERE
+            name = %s
+        FOR UPDATE
+        """,
+        (workday_name,),
+        as_dict=True,
+    )
+
+    if not rows:
+        frappe.throw(
+            _("Workday {0} does not exist.").format(
+                workday_name
+            )
+        )
+
+    return rows[0]
+
+
+def _get_active_workday_ledger_entries(workday_name):
+    return frappe.db.sql(
+        """
+        SELECT
+            workday_entry.name,
+            workday_entry.employee,
+            workday_entry.delta_minutes
+        FROM
+            `tabTime Account Ledger Entry` AS workday_entry
+        LEFT JOIN
+            `tabTime Account Ledger Entry` AS reversal
+            ON reversal.reverses_entry = workday_entry.name
+            AND reversal.entry_type = %s
+        WHERE
+            workday_entry.entry_type = %s
+            AND workday_entry.voucher_type = 'Workday'
+            AND workday_entry.voucher_no = %s
+            AND reversal.name IS NULL
+        ORDER BY
+            workday_entry.creation ASC,
+            workday_entry.name ASC
+        """,
+        (
+            ENTRY_TYPE_REVERSAL,
+            ENTRY_TYPE_WORKDAY,
+            workday_name,
+        ),
+        as_dict=True,
+    )
+
+
+def reverse_time_account_entry(entry_name):
+    original = frappe.db.get_value(
+        "Time Account Ledger Entry",
+        entry_name,
+        [
+            "employee",
+            "effective_date",
+            "effective_time",
+            "delta_minutes",
+        ],
+        as_dict=True,
+    )
+
+    if not original:
+        frappe.throw(
+            _("Ledger entry {0} does not exist.").format(
+                entry_name
+            )
+        )
+
+    return frappe.get_doc(
+        {
+            "doctype": "Time Account Ledger Entry",
+            "employee": original.employee,
+            "effective_date": original.effective_date,
+            "effective_time": original.effective_time,
+            "entry_type": ENTRY_TYPE_REVERSAL,
+            "delta_minutes": -cint(
+                original.delta_minutes
+            ),
+            "reverses_entry": entry_name,
+        }
+    ).insert(ignore_permissions=True)
+
+
+def _create_workday_ledger_entry(workday):
+    return frappe.get_doc(
+        {
+            "doctype": "Time Account Ledger Entry",
+            "employee": workday.employee,
+            "effective_date": workday.log_date,
+            "effective_time": "00:00:00",
+            "entry_type": ENTRY_TYPE_WORKDAY,
+            "delta_minutes": cint(
+                workday.daily_delta_minutes
+            ),
+            "voucher_type": "Workday",
+            "voucher_no": workday.name,
+        }
+    ).insert(ignore_permissions=True)
+
+
+def post_workday(workday_name):
+    workday = _get_workday_for_update(workday_name)
+
+    desired_delta = cint(
+        workday.daily_delta_minutes
+    )
+
+    active_entries = _get_active_workday_ledger_entries(
+        workday.name
+    )
+
+    if len(active_entries) > 1:
+        frappe.throw(
+            _(
+                "Workday {0} has multiple active "
+                "Time Account Ledger Entries. "
+                "Automatic posting was stopped."
+            ).format(workday.name)
+        )
+
+    current_entry = (
+        active_entries[0]
+        if active_entries
+        else None
+    )
+
+    if (
+        current_entry
+        and current_entry.employee != workday.employee
+    ):
+        frappe.throw(
+            _(
+                "Active ledger entry employee does not match "
+                "Workday {0}."
+            ).format(workday.name)
+        )
+
+    if (
+        current_entry
+        and cint(current_entry.delta_minutes)
+        == desired_delta
+    ):
+        return frappe._dict(
+            {
+                "changed": False,
+                "workday_entry": current_entry.name,
+                "reversal_entry": None,
+            }
+        )
+
+    reversal_entry = None
+
+    if current_entry:
+        reversal_entry = reverse_time_account_entry(
+            current_entry.name
+        )
+
+    if desired_delta == 0:
+        return frappe._dict(
+            {
+                "changed": bool(reversal_entry),
+                "workday_entry": None,
+                "reversal_entry": (
+                    reversal_entry.name
+                    if reversal_entry
+                    else None
+                ),
+            }
+        )
+
+    new_entry = _create_workday_ledger_entry(
+        workday
+    )
+
+    return frappe._dict(
+        {
+            "changed": True,
+            "workday_entry": new_entry.name,
+            "reversal_entry": (
+                reversal_entry.name
+                if reversal_entry
+                else None
+            ),
+        }
+    )
