@@ -14,24 +14,36 @@ from hrms.utils.holiday_list import get_holiday_list_for_employee
 import traceback
 MECHANISM_MINIMUM_BREAK_RULE = "Break Hours from Minimum Break Rule"
 
-class Workday(Document):
-	def validate(self):
+class Workday(Document):	def validate(self):
 		self.set_actual_employee_log()
-
-		# A Workday may affect the time account only when there is a
-		# complete effective IN -> OUT span. Visible Workday status may
-		# later be changed by leave/absence handling and is therefore not
-		# sufficient on its own to determine calculation validity.
-		delta_is_valid = (
-			self.status != "Missing Checkin"
-			and bool(self.first_checkin)
-			and bool(self.last_checkout)
-		)
-		self.date_is_in_comp_off()
 		self.validate_duplicate_workday()
 
 		absence_credit_cap_minutes = (
 			self.set_status_for_leave_application()
+		)
+
+		has_complete_effective_span = (
+			self.status != "Missing Checkin"
+			and bool(self.first_checkin)
+			and bool(self.last_checkout)
+		)
+
+		# A completely empty scheduled workday is a valid
+		# time-account event: without leave/holiday credit it
+		# represents a full negative target day.
+		#
+		# Existing but unusable checkins remain fail-closed.
+		has_no_checkin_records = not bool(
+			self.employee_checkins
+		)
+
+		delta_is_valid = (
+			has_complete_effective_span
+			or (
+				has_no_checkin_records
+				and self.status
+				not in ("Missing Checkin", "Not Workday")
+			)
 		)
 
 		self.finalize_minute_evaluation(
