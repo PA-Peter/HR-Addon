@@ -18,7 +18,7 @@
   "hours",
   "section_break_11",
   "total_work_hours",
-  "no_break_hours",
+  "disable_minimum_break_rule",
   "set_target_hours_to_zero_when_date_is_holiday",
   "column_break_14",
   "amended_from",
@@ -113,9 +113,10 @@
   },
   {
    "default": "0",
-   "fieldname": "no_break_hours",
+   "description": "Disables automatic minimum-break deduction for this working-hours model. Physical OUT-IN breaks remain non-working time.",
+   "fieldname": "disable_minimum_break_rule",
    "fieldtype": "Check",
-   "label": "No break hours if target hours is less than 6 hours"
+   "label": "Disable Automatic Minimum Break"
   },
   {
    "default": "0",
