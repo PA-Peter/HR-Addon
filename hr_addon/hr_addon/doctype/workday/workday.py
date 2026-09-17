@@ -18,10 +18,15 @@ class Workday(Document):
 	def validate(self):
 		self.set_actual_employee_log()
 
-		# Preserve the validity of the checkin sequence before leave/absence
-		# handling may change the visible Workday status.
-		delta_is_valid = self.status != "Missing Checkin"
-
+		# A Workday may affect the time account only when there is a
+		# complete effective IN -> OUT span. Visible Workday status may
+		# later be changed by leave/absence handling and is therefore not
+		# sufficient on its own to determine calculation validity.
+		delta_is_valid = (
+			self.status != "Missing Checkin"
+			and bool(self.first_checkin)
+			and bool(self.last_checkout)
+		)
 		self.date_is_in_comp_off()
 		self.validate_duplicate_workday()
 
