@@ -17,11 +17,22 @@ MECHANISM_MINIMUM_BREAK_RULE = "Break Hours from Minimum Break Rule"
 class Workday(Document):
 	def validate(self):
 		self.set_actual_employee_log()
+
+		# Preserve the validity of the checkin sequence before leave/absence
+		# handling may change the visible Workday status.
+		delta_is_valid = self.status != "Missing Checkin"
+
 		self.date_is_in_comp_off()
 		self.validate_duplicate_workday()
-		absence_credit_cap_minutes = self.set_status_for_leave_application()
-		self.finalize_minute_evaluation(absence_credit_cap_minutes)
 
+		absence_credit_cap_minutes = (
+			self.set_status_for_leave_application()
+		)
+
+		self.finalize_minute_evaluation(
+			absence_credit_cap_minutes,
+			delta_is_valid=delta_is_valid,
+		)
 	def after_insert(self):
 		"""Show a concise message after creating a Workday, indicating its status."""
 		if self.status == "Missing Checkin":
@@ -142,6 +153,7 @@ class Workday(Document):
 	def finalize_minute_evaluation(
 		self,
 		absence_credit_cap_minutes=0,
+		delta_is_valid=True,
 	):
 		self.target_minutes = max(
 			int(flt(self.target_hours or 0) * 60),
@@ -164,7 +176,7 @@ class Workday(Document):
 			target_minutes=self.target_minutes,
 			accountable_minutes=self.accountable_minutes,
 			absence_credit_cap_minutes=absence_credit_cap_minutes,
-			delta_is_valid=self.status != "Missing Checkin",
+			delta_is_valid=delta_is_valid,
 		)
 
 		self.absence_credit_minutes = result[
