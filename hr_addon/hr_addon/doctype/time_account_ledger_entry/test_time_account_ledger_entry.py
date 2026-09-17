@@ -14,6 +14,10 @@ from hr_addon.hr_addon.doctype.time_account_ledger_entry.time_account_ledger_ent
     get_time_account_balance,
 )
 
+IGNORE_TEST_RECORD_DEPENDENCIES = [
+    "Employee",
+    "DocType",
+]
 
 class TestTimeAccountLedgerEntry(IntegrationTestCase):
     def setUp(self):
