@@ -8,6 +8,7 @@ from unittest.mock import patch
 from hr_addon.hr_addon.doctype.workday.workday import (
     MECHANISM_MINIMUM_BREAK_RULE,
     date_is_in_holiday_list,
+    evaluate_daily_minutes,
     evaluate_minimum_break,
     get_workday,
     parse_employee_checkins,
@@ -368,7 +369,7 @@ class TestWorkdayMinimumBreakRouting(UnitTestCase):
         self,
         checkins,
         qualifying_break_minutes=15,
-        no_break_hours=False,
+            disable_minimum_break_rule=False,
     ):
         with patch(
             "hr_addon.hr_addon.doctype.workday.workday."
@@ -378,7 +379,7 @@ class TestWorkdayMinimumBreakRouting(UnitTestCase):
             return get_workday(
                 checkins,
                 self._work_hours(),
-                no_break_hours,
+                disable_minimum_break_rule,
             )
 
     def test_minimum_break_route_does_not_double_deduct_physical_break(self):
@@ -454,27 +455,83 @@ class TestWorkdayMinimumBreakRouting(UnitTestCase):
         )
         self.assertEqual(result["accountable_minutes"], 555)
 
-    def test_legacy_no_break_hours_does_not_bypass_minimum_break_rule(self):
+    def test_disabled_minimum_break_rule_has_no_auto_deduction(self):
         result = self._get_workday(
             [
-                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
-                _make_checkin("CI-2", "OUT", "2026-09-10 14:01:00"),
+                _make_checkin(
+                    "CI-1",
+                    "IN",
+                    "2026-09-10 08:00:00",
+                ),
+                _make_checkin(
+                    "CI-2",
+                    "OUT",
+                    "2026-09-10 14:01:00",
+                ),
             ],
-            no_break_hours=True,
+            disable_minimum_break_rule=True,
         )
 
         self.assertEqual(result["raw_work_minutes"], 361)
-        self.assertEqual(result["required_break_minutes"], 30)
+        self.assertEqual(result["required_break_minutes"], 0)
         self.assertEqual(
             result["automatic_break_deduction_minutes"],
-            30,
+            0,
         )
-        self.assertEqual(result["accountable_minutes"], 331)
-        self.assertAlmostEqual(
-            result["actual_working_hours"],
-            331 / 60,
-        )
+        self.assertEqual(result["accountable_minutes"], 361)
 
+    class TestDailyMinuteEvaluation(UnitTestCase):
+        def test_full_absence_credits_full_target(self):
+            result = evaluate_daily_minutes(
+                target_minutes=480,
+                accountable_minutes=0,
+                absence_credit_cap_minutes=480,
+            )
+
+            self.assertEqual(result["target_minutes"], 480)
+            self.assertEqual(result["absence_credit_minutes"], 480)
+            self.assertEqual(result["daily_delta_minutes"], 0)
+
+        def test_partial_absence_credits_only_missing_target(self):
+            result = evaluate_daily_minutes(
+                target_minutes=480,
+                accountable_minutes=240,
+                absence_credit_cap_minutes=240,
+            )
+
+            self.assertEqual(result["absence_credit_minutes"], 240)
+            self.assertEqual(result["daily_delta_minutes"], 0)
+
+        def test_absence_does_not_create_extra_credit(self):
+            result = evaluate_daily_minutes(
+                target_minutes=480,
+                accountable_minutes=495,
+                absence_credit_cap_minutes=480,
+            )
+
+            self.assertEqual(result["absence_credit_minutes"], 0)
+            self.assertEqual(result["daily_delta_minutes"], 15)
+
+        def test_zero_target_day_with_work_is_positive(self):
+            result = evaluate_daily_minutes(
+                target_minutes=0,
+                accountable_minutes=180,
+            )
+
+            self.assertEqual(result["absence_credit_minutes"], 0)
+            self.assertEqual(result["daily_delta_minutes"], 180)
+    
+        def test_invalid_day_has_no_delta(self):
+            result = evaluate_daily_minutes(
+                target_minutes=480,
+                accountable_minutes=0,
+                absence_credit_cap_minutes=480,
+                delta_is_valid=False,
+            )
+
+            self.assertEqual(result["daily_delta_minutes"], 0)
+
+    
     def test_zero_qualification_setting_falls_back_to_15_minutes(self):
         result = self._get_workday(
             [
