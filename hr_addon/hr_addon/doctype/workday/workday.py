@@ -995,15 +995,17 @@ def get_workday(employee_checkins, employee_default_work_hour, no_break_hours):
     minimum_break_evaluation = None
 
     if mechanism == MECHANISM_MINIMUM_BREAK_RULE:
-        qualifying_break_threshold = getattr(
-            hr_addon_settings,
-            "minimum_qualifying_break_minutes",
-            None,
-        )
-
-        if qualifying_break_threshold is None:
-            qualifying_break_threshold = 15
-
+        qualifying_break_threshold = (
+ 			cint(
+				getattr(
+					hr_addon_settings,
+					"minimum_qualifying_break_minutes",
+					0,
+				)
+			)
+			or 15
+		)
+		
         minimum_break_evaluation = evaluate_minimum_break(
             raw_work_minutes=raw_work_minutes,
             break_intervals=parsed_checkins["break_intervals"],
