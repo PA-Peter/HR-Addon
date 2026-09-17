@@ -492,4 +492,4 @@ class TestWorkdayMinimumBreakRouting(UnitTestCase):
             result["automatic_break_deduction_minutes"],
             45,
         )
-    }
+    
