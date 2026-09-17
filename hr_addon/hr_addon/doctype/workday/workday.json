@@ -22,6 +22,17 @@
   "column_break_5",
   "expected_break_hours",
   "break_hours",
+  "minute_calculation_section",
+  "target_minutes",
+  "raw_work_minutes",
+  "physical_break_minutes",
+  "qualifying_break_minutes",
+  "minute_calculation_column",
+  "required_break_minutes",
+  "automatic_break_deduction_minutes",
+  "absence_credit_minutes",
+  "accountable_minutes",
+  "daily_delta_minutes",
   "section_break_14",
   "first_checkin",
   "last_checkout",
@@ -142,6 +153,87 @@
    "fieldname": "employee_name",
    "fieldtype": "Data",
    "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "minute_calculation_section",
+   "fieldtype": "Section Break",
+   "label": "Minute Calculation"
+  },
+  {
+   "default": "0",
+   "description": "Authoritative daily target in whole minutes.",
+   "fieldname": "target_minutes",
+   "fieldtype": "Int",
+   "label": "Target Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Sum of all valid working intervals in whole minutes.",
+   "fieldname": "raw_work_minutes",
+   "fieldtype": "Int",
+   "label": "Raw Work Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Sum of all physical gaps between valid working intervals.",
+   "fieldname": "physical_break_minutes",
+   "fieldtype": "Int",
+   "label": "Physical Break Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Sum of individual physical break intervals that qualify towards the minimum-break requirement.",
+   "fieldname": "qualifying_break_minutes",
+   "fieldtype": "Int",
+   "label": "Qualifying Break Minutes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "minute_calculation_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Configured minimum break required for the raw working time.",
+   "fieldname": "required_break_minutes",
+   "fieldtype": "Int",
+   "label": "Required Break Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Only the missing difference between qualifying and required minimum break.",
+   "fieldname": "automatic_break_deduction_minutes",
+   "fieldtype": "Int",
+   "label": "Automatic Break Deduction Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Target-capped credit from approved absence such as leave or sickness.",
+   "fieldname": "absence_credit_minutes",
+   "fieldtype": "Int",
+   "label": "Absence Credit Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Creditable actual work after automatic minimum-break deduction.",
+   "fieldname": "accountable_minutes",
+   "fieldtype": "Int",
+   "label": "Accountable Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Accountable Minutes + Absence Credit Minutes - Target Minutes.",
+   "fieldname": "daily_delta_minutes",
+   "fieldtype": "Int",
+   "label": "Daily Delta Minutes",
    "read_only": 1
   }
  ],
