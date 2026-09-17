@@ -479,6 +479,23 @@ class TestWorkdayMinimumBreakRouting(UnitTestCase):
             0,
         )
         self.assertEqual(result["accountable_minutes"], 361)
+    def test_zero_qualification_setting_falls_back_to_15_minutes(self):
+        result = self._get_workday(
+            [
+                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
+                _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
+                _make_checkin("CI-3", "IN", "2026-09-10 12:10:00"),
+                _make_checkin("CI-4", "OUT", "2026-09-10 18:10:00"),
+            ],
+            qualifying_break_minutes=0,
+        )
+
+        self.assertEqual(result["physical_break_minutes"], 10)
+        self.assertEqual(result["qualifying_break_minutes"], 0)
+        self.assertEqual(
+            result["automatic_break_deduction_minutes"],
+            45,
+        )
 
 class TestDailyMinuteEvaluation(UnitTestCase):
     def test_full_absence_credits_full_target(self):
@@ -530,23 +547,3 @@ class TestDailyMinuteEvaluation(UnitTestCase):
         )
 
         self.assertEqual(result["daily_delta_minutes"], 0)
-
-    
-    def test_zero_qualification_setting_falls_back_to_15_minutes(self):
-        result = self._get_workday(
-            [
-                _make_checkin("CI-1", "IN", "2026-09-10 08:00:00"),
-                _make_checkin("CI-2", "OUT", "2026-09-10 12:00:00"),
-                _make_checkin("CI-3", "IN", "2026-09-10 12:10:00"),
-                _make_checkin("CI-4", "OUT", "2026-09-10 18:10:00"),
-            ],
-            qualifying_break_minutes=0,
-        )
-
-        self.assertEqual(result["physical_break_minutes"], 10)
-        self.assertEqual(result["qualifying_break_minutes"], 0)
-        self.assertEqual(
-            result["automatic_break_deduction_minutes"],
-            45,
-        )
-    
