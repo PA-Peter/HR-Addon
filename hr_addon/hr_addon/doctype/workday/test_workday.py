@@ -480,56 +480,56 @@ class TestWorkdayMinimumBreakRouting(UnitTestCase):
         )
         self.assertEqual(result["accountable_minutes"], 361)
 
-    class TestDailyMinuteEvaluation(UnitTestCase):
-        def test_full_absence_credits_full_target(self):
-            result = evaluate_daily_minutes(
-                target_minutes=480,
-                accountable_minutes=0,
-                absence_credit_cap_minutes=480,
-            )
+class TestDailyMinuteEvaluation(UnitTestCase):
+    def test_full_absence_credits_full_target(self):
+        result = evaluate_daily_minutes(
+            target_minutes=480,
+            accountable_minutes=0,
+            absence_credit_cap_minutes=480,
+        )
 
-            self.assertEqual(result["target_minutes"], 480)
-            self.assertEqual(result["absence_credit_minutes"], 480)
-            self.assertEqual(result["daily_delta_minutes"], 0)
+        self.assertEqual(result["target_minutes"], 480)
+        self.assertEqual(result["absence_credit_minutes"], 480)
+        self.assertEqual(result["daily_delta_minutes"], 0)
 
-        def test_partial_absence_credits_only_missing_target(self):
-            result = evaluate_daily_minutes(
-                target_minutes=480,
-                accountable_minutes=240,
-                absence_credit_cap_minutes=240,
-            )
+    def test_partial_absence_credits_only_missing_target(self):
+        result = evaluate_daily_minutes(
+            target_minutes=480,
+            accountable_minutes=240,
+            absence_credit_cap_minutes=240,
+        )
 
-            self.assertEqual(result["absence_credit_minutes"], 240)
-            self.assertEqual(result["daily_delta_minutes"], 0)
+        self.assertEqual(result["absence_credit_minutes"], 240)
+        self.assertEqual(result["daily_delta_minutes"], 0)
 
-        def test_absence_does_not_create_extra_credit(self):
-            result = evaluate_daily_minutes(
-                target_minutes=480,
-                accountable_minutes=495,
-                absence_credit_cap_minutes=480,
-            )
+    def test_absence_does_not_create_extra_credit(self):
+        result = evaluate_daily_minutes(
+            target_minutes=480,
+            accountable_minutes=495,
+            absence_credit_cap_minutes=480,
+        )
 
-            self.assertEqual(result["absence_credit_minutes"], 0)
-            self.assertEqual(result["daily_delta_minutes"], 15)
+        self.assertEqual(result["absence_credit_minutes"], 0)
+        self.assertEqual(result["daily_delta_minutes"], 15)
 
-        def test_zero_target_day_with_work_is_positive(self):
-            result = evaluate_daily_minutes(
-                target_minutes=0,
-                accountable_minutes=180,
-            )
+    def test_zero_target_day_with_work_is_positive(self):
+        result = evaluate_daily_minutes(
+            target_minutes=0,
+            accountable_minutes=180,
+        )
 
-            self.assertEqual(result["absence_credit_minutes"], 0)
-            self.assertEqual(result["daily_delta_minutes"], 180)
+        self.assertEqual(result["absence_credit_minutes"], 0)
+        self.assertEqual(result["daily_delta_minutes"], 180)
     
-        def test_invalid_day_has_no_delta(self):
-            result = evaluate_daily_minutes(
-                target_minutes=480,
-                accountable_minutes=0,
-                absence_credit_cap_minutes=480,
-                delta_is_valid=False,
-            )
+    def test_invalid_day_has_no_delta(self):
+        result = evaluate_daily_minutes(
+            target_minutes=480,
+            accountable_minutes=0,
+            absence_credit_cap_minutes=480,
+            delta_is_valid=False,
+        )
 
-            self.assertEqual(result["daily_delta_minutes"], 0)
+        self.assertEqual(result["daily_delta_minutes"], 0)
 
     
     def test_zero_qualification_setting_falls_back_to_15_minutes(self):
