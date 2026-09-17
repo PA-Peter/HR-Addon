@@ -21,6 +21,7 @@
    "reqd": 1
   },
   {
+   "default": "0",
    "fieldname": "hours",
    "fieldtype": "Float",
    "in_list_view": 1,
@@ -33,6 +34,7 @@
    "label": "Hour Time"
   },
   {
+   "default:": "0",
    "fieldname": "break_minutes",
    "fieldtype": "Int",
    "in_list_view": 1,
