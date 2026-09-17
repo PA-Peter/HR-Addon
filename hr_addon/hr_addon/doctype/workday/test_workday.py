@@ -143,7 +143,12 @@ class TestEmployeeCheckinParser(UnitTestCase):
         self.assertEqual(result["raw_work_minutes"], 59)
 
 class TestWorkdayFailClosedDelta(UnitTestCase):
-    def _validate_from_parsed_checkins(self, parsed_checkins):
+    def _validate_from_parsed_checkins(
+        self,
+        parsed_checkins,
+        absence_credit_cap_minutes=0,
+        status_override=None,
+    ):
         workday = Workday(
             {
                 "doctype": "Workday",
@@ -152,12 +157,21 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
 
         def set_actual_employee_log():
             workday.status = (
-                "Missing Checkin"
-                if not parsed_checkins["is_valid"]
-                else ""
+                status_override
+                if status_override is not None
+                else (
+                    "Missing Checkin"
+                    if not parsed_checkins["is_valid"]
+                    else ""
+                )
             )
-            workday.first_checkin = parsed_checkins["first_checkin"]
-            workday.last_checkout = parsed_checkins["last_checkout"]
+
+            workday.first_checkin = parsed_checkins[
+                "first_checkin"
+            ]
+            workday.last_checkout = parsed_checkins[
+                "last_checkout"
+            ]
 
             workday.target_hours = 8
             workday.raw_work_minutes = 0
@@ -166,6 +180,29 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
             workday.required_break_minutes = 0
             workday.automatic_break_deduction_minutes = 0
             workday.accountable_minutes = 0
+
+            workday.employee_checkins = []
+
+            for checkin in parsed_checkins[
+                "audit_checkins"
+            ]:
+                workday.append(
+                    "employee_checkins",
+                    {
+                        "employee_checkin": checkin.get(
+                            "name"
+                        ),
+                        "log_type": checkin.get(
+                            "log_type"
+                        ),
+                        "log_time": checkin.get(
+                            "time"
+                        ),
+                        "skip_auto_attendance": checkin.get(
+                            "skip_auto_attendance"
+                        ),
+                    },
+                )
 
         settings = frappe._dict(
             workday_break_calculation_mechanism=(
@@ -181,16 +218,12 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
             ),
             patch.object(
                 workday,
-                "date_is_in_comp_off",
-            ),
-            patch.object(
-                workday,
                 "validate_duplicate_workday",
             ),
             patch.object(
                 workday,
                 "set_status_for_leave_application",
-                return_value=0,
+                return_value=absence_credit_cap_minutes,
             ),
             patch(
                 "hr_addon.hr_addon.doctype.workday.workday."
@@ -202,22 +235,43 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
 
         return workday
 
-    def test_no_checkins_do_not_create_negative_delta(self):
+    def test_no_checkins_create_negative_target_delta(self):
         parsed = parse_employee_checkins([])
 
         self.assertTrue(parsed["is_valid"])
-        self.assertEqual(parsed["effective_checkins"], [])
-        self.assertEqual(parsed["first_checkin"], "")
-        self.assertEqual(parsed["last_checkout"], "")
+        self.assertEqual(
+            parsed["effective_checkins"],
+            [],
+        )
+        self.assertEqual(
+            parsed["audit_checkins"],
+            [],
+        )
 
-        workday = self._validate_from_parsed_checkins(parsed)
+        workday = self._validate_from_parsed_checkins(
+            parsed
+        )
 
-        self.assertEqual(workday.target_minutes, 480)
-        self.assertEqual(workday.accountable_minutes, 0)
-        self.assertEqual(workday.absence_credit_minutes, 0)
-        self.assertEqual(workday.daily_delta_minutes, 0)
+        self.assertEqual(
+            workday.target_minutes,
+            480,
+        )
+        self.assertEqual(
+            workday.accountable_minutes,
+            0,
+        )
+        self.assertEqual(
+            workday.absence_credit_minutes,
+            0,
+        )
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            -480,
+        )
 
-    def test_only_skipped_checkins_do_not_create_negative_delta(self):
+    def test_only_skipped_checkins_do_not_create_negative_delta(
+        self,
+    ):
         parsed = parse_employee_checkins(
             [
                 _make_checkin(
@@ -236,17 +290,81 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
         )
 
         self.assertTrue(parsed["is_valid"])
-        self.assertEqual(len(parsed["audit_checkins"]), 2)
-        self.assertEqual(parsed["effective_checkins"], [])
-        self.assertEqual(parsed["first_checkin"], "")
-        self.assertEqual(parsed["last_checkout"], "")
+        self.assertEqual(
+            parsed["effective_checkins"],
+            [],
+        )
+        self.assertEqual(
+            len(parsed["audit_checkins"]),
+            2,
+        )
 
-        workday = self._validate_from_parsed_checkins(parsed)
+        workday = self._validate_from_parsed_checkins(
+            parsed
+        )
 
-        self.assertEqual(workday.target_minutes, 480)
-        self.assertEqual(workday.accountable_minutes, 0)
-        self.assertEqual(workday.absence_credit_minutes, 0)
-        self.assertEqual(workday.daily_delta_minutes, 0)
+        self.assertEqual(
+            workday.target_minutes,
+            480,
+        )
+        self.assertEqual(
+            workday.accountable_minutes,
+            0,
+        )
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            0,
+        )
+
+    def test_full_day_leave_without_checkins_is_neutral(
+        self,
+    ):
+        parsed = parse_employee_checkins([])
+
+        workday = self._validate_from_parsed_checkins(
+            parsed,
+            absence_credit_cap_minutes=480,
+        )
+
+        self.assertEqual(
+            workday.target_minutes,
+            480,
+        )
+        self.assertEqual(
+            workday.accountable_minutes,
+            0,
+        )
+        self.assertEqual(
+            workday.absence_credit_minutes,
+            480,
+        )
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            0,
+        )
+
+    def test_not_workday_without_checkins_is_neutral(
+        self,
+    ):
+        parsed = parse_employee_checkins([])
+
+        workday = self._validate_from_parsed_checkins(
+            parsed,
+            status_override="Not Workday",
+        )
+
+        self.assertEqual(
+            workday.target_minutes,
+            480,
+        )
+        self.assertEqual(
+            workday.accountable_minutes,
+            0,
+        )
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            0,
+        )
 
 class TestWorkday(IntegrationTestCase):
     def setUp(self):
