@@ -146,6 +146,7 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
     def _validate_from_parsed_checkins(
         self,
         parsed_checkins,
+        target_hours=8,
         absence_credit_cap_minutes=0,
         status_override=None,
     ):
@@ -173,7 +174,7 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
                 "last_checkout"
             ]
 
-            workday.target_hours = 8
+            workday.target_hours = target_hours
             workday.raw_work_minutes = 0
             workday.physical_break_minutes = 0
             workday.qualifying_break_minutes = 0
@@ -235,40 +236,43 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
 
         return workday
 
-    def test_no_checkins_create_negative_target_delta(self):
+    def test_no_checkins_create_negative_individual_target_delta(
+        self,
+    ):
         parsed = parse_employee_checkins([])
 
-        self.assertTrue(parsed["is_valid"])
-        self.assertEqual(
-            parsed["effective_checkins"],
-            [],
-        )
-        self.assertEqual(
-            parsed["audit_checkins"],
-            [],
-        )
+        for target_hours, expected_minutes in (
+            (8, 480),
+            (7, 420),
+            (4, 240),
+            (0, 0),
+        ):
+            with self.subTest(
+                target_hours=target_hours
+            ):
+                workday = self._validate_from_parsed_checkins(
+                    parsed,
+                    target_hours=target_hours,
+                )
 
-        workday = self._validate_from_parsed_checkins(
-            parsed
-        )
+                self.assertEqual(
+                    workday.target_minutes,
+                    expected_minutes,
+                )
+                self.assertEqual(
+                    workday.accountable_minutes,
+                    0,
+                )
+                self.assertEqual(
+                    workday.absence_credit_minutes,
+                    0,
+                )
+                self.assertEqual(
+                    workday.daily_delta_minutes,
+                    -expected_minutes,
+                )
 
-        self.assertEqual(
-            workday.target_minutes,
-            480,
-        )
-        self.assertEqual(
-            workday.accountable_minutes,
-            0,
-        )
-        self.assertEqual(
-            workday.absence_credit_minutes,
-            0,
-        )
-        self.assertEqual(
-            workday.daily_delta_minutes,
-            -480,
-        )
-
+    
     def test_only_skipped_checkins_do_not_create_negative_delta(
         self,
     ):
