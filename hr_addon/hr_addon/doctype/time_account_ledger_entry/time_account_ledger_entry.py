@@ -32,12 +32,18 @@ MANUAL_ENTRY_TYPES = (
     ENTRY_TYPE_POSITIVE_ADJUSTMENT,
     ENTRY_TYPE_NEGATIVE_ADJUSTMENT,
 )
+AUTOMATIC_ENTRY_TYPES = (
+    ENTRY_TYPE_WORKDAY,
+    ENTRY_TYPE_REVERSAL,
+)
 
+SERVICE_INSERT_FLAG = "time_account_ledger_service"
 
 class TimeAccountLedgerEntry(Document):
     def validate(self):
         self._validate_immutable()
         self._validate_entry_type()
+        self._validate_automatic_entry_origin()
 
         if self.entry_type == ENTRY_TYPE_REVERSAL:
             self._apply_reversal()
@@ -66,6 +72,18 @@ class TimeAccountLedgerEntry(Document):
                 _("Invalid Time Account Ledger Entry type: {0}").format(
                     self.entry_type
                 )
+            )
+
+    def _validate_automatic_entry_origin(self):
+        if (
+            self.entry_type in AUTOMATIC_ENTRY_TYPES
+            and not self.flags.get(SERVICE_INSERT_FLAG)
+        ):
+            frappe.throw(
+                _(
+                    "{0} Time Account Ledger Entries may only be "
+                    "created by the time-account service."
+                ).format(self.entry_type)
             )
 
     def _validate_non_zero_delta(self):
@@ -375,7 +393,7 @@ def reverse_time_account_entry(entry_name):
             )
         )
 
-    return frappe.get_doc(
+    reversal = frappe.get_doc(
         {
             "doctype": "Time Account Ledger Entry",
             "employee": original.employee,
@@ -387,11 +405,17 @@ def reverse_time_account_entry(entry_name):
             ),
             "reverses_entry": entry_name,
         }
-    ).insert(ignore_permissions=True)
+    )
+
+    reversal.flags[SERVICE_INSERT_FLAG] = True
+
+    return reversal.insert(
+        ignore_permissions=True
+    )
 
 
 def _create_workday_ledger_entry(workday):
-    return frappe.get_doc(
+    entry = frappe.get_doc(
         {
             "doctype": "Time Account Ledger Entry",
             "employee": workday.employee,
@@ -404,7 +428,13 @@ def _create_workday_ledger_entry(workday):
             "voucher_type": "Workday",
             "voucher_no": workday.name,
         }
-    ).insert(ignore_permissions=True)
+    )
+
+    entry.flags[SERVICE_INSERT_FLAG] = True
+
+    return entry.insert(
+        ignore_permissions=True
+    )
 
 
 def post_workday(workday_name):
