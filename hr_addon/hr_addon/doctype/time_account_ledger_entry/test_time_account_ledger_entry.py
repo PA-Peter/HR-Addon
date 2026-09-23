@@ -15,6 +15,7 @@ from hr_addon.hr_addon.doctype.time_account_ledger_entry.time_account_ledger_ent
     ENTRY_TYPE_WORKDAY,
     get_time_account_balance,
     post_workday,
+    reverse_time_account_entry,
 )
 
 
@@ -66,8 +67,9 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
         reverses_entry=None,
         voucher_type=None,
         voucher_no=None,
+        internal_service=False,
     ):
-        return frappe.get_doc(
+        entry = frappe.get_doc(
             {
                 "doctype": "Time Account Ledger Entry",
                 "employee": self.employee,
@@ -80,8 +82,16 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
                 "voucher_type": voucher_type,
                 "voucher_no": voucher_no,
             }
-        ).insert(ignore_permissions=True)
+        )
 
+        if internal_service:
+            entry.flags[
+                "time_account_ledger_service"
+            ] = True
+
+        return entry.insert(
+            ignore_permissions=True
+        )
     def make_workday(
         self,
         delta_minutes,
@@ -228,6 +238,37 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
                 ignore_permissions=True,
             )
 
+    def test_workday_entry_cannot_be_created_directly(self):
+        workday = self.make_workday(42)
+
+        with self.assertRaises(
+            frappe.ValidationError
+        ):
+            self.make_entry(
+                ENTRY_TYPE_WORKDAY,
+                42,
+                effective_date=workday.log_date,
+                effective_time="00:00:00",
+                voucher_type="Workday",
+                voucher_no=workday.name,
+            )
+
+    def test_reversal_cannot_be_created_directly(self):
+        original = self.make_entry(
+            ENTRY_TYPE_POSITIVE_ADJUSTMENT,
+            42,
+            remarks="Original adjustment",
+        )
+
+        with self.assertRaises(
+            frappe.ValidationError
+        ):
+            self.make_entry(
+                ENTRY_TYPE_REVERSAL,
+                -42,
+                reverses_entry=original.name,
+            )
+    
     def test_reversal_negates_original_entry(self):
         original = self.make_entry(
             ENTRY_TYPE_POSITIVE_ADJUSTMENT,
@@ -237,14 +278,10 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
             effective_time="09:30:00",
         )
 
-        reversal = self.make_entry(
-            ENTRY_TYPE_REVERSAL,
-            999,
-            reverses_entry=original.name,
-            effective_date="2026-09-17",
-            effective_time="15:00:00",
+        reversal = reverse_time_account_entry(
+            original.name
         )
-
+        
         self.assertEqual(
             reversal.employee,
             original.employee,
@@ -282,19 +319,17 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
             remarks="Original adjustment",
         )
 
-        self.make_entry(
-            ENTRY_TYPE_REVERSAL,
-            -42,
-            reverses_entry=original.name,
+        reverse_time_account_entry(
+            original.name
         )
 
-        with self.assertRaises(frappe.ValidationError):
-            self.make_entry(
-                ENTRY_TYPE_REVERSAL,
-                -42,
-                reverses_entry=original.name,
+        with self.assertRaises(
+            frappe.ValidationError
+        ):
+            reverse_time_account_entry(
+                original.name
             )
-
+            
     def test_post_workday_creates_ledger_entry(self):
         workday = self.make_workday(95)
 
@@ -513,6 +548,7 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
             effective_time="00:00:00",
             voucher_type="Workday",
             voucher_no=workday.name,
+            internal_service=True,
         )
 
         self.make_entry(
@@ -522,6 +558,7 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
             effective_time="00:00:00",
             voucher_type="Workday",
             voucher_no=workday.name,
+            internal_service=True,
         )
 
         with self.assertRaises(
