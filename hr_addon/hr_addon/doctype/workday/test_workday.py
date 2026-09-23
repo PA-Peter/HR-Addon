@@ -740,6 +740,90 @@ class TestWorkdayLedgerLifecycle(IntegrationTestCase):
             -420,
         )
 
+    def test_wwh_target_flows_through_workday_to_ledger(
+        self,
+    ):
+        weekly_working_hours = frappe.get_doc(
+            {
+                "doctype": "Weekly Working Hours",
+                "employee": self.employee,
+                "company": self.company,
+                "valid_from": "2027-01-01",
+                "valid_to": None,
+                "hours": [
+                    {
+                        "day": "Monday",
+                        "hours": 7,
+                        "break_minutes": 0,
+                    }
+                ],
+            }
+        )
+
+        weekly_working_hours.insert()
+        weekly_working_hours.submit()
+
+        settings = frappe._dict(
+            {
+                "workday_break_calculation_mechanism": (
+                    MECHANISM_MINIMUM_BREAK_RULE
+                ),
+                "swap_hours_worked_and_actual_working_hours": 0,
+                "minimum_qualifying_break_minutes": 15,
+                "minimum_break_rule": [],
+            }
+        )
+
+        workday = self._new_workday(
+            log_date="2027-01-04",
+        )
+
+        with patch(
+            "hr_addon.hr_addon.doctype.workday.workday."
+            "frappe.get_cached_doc",
+            return_value=settings,
+        ):
+            workday.insert()
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(
+            workday.target_hours,
+            7,
+        )
+        self.assertEqual(
+            workday.target_minutes,
+            420,
+        )
+        self.assertEqual(
+            workday.accountable_minutes,
+            0,
+        )
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            -420,
+        )
+
+        self.assertEqual(
+            len(rows),
+            1,
+        )
+        self.assertEqual(
+            rows[0].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+        self.assertEqual(
+            rows[0].delta_minutes,
+            -420,
+        )
+
+        self.assertEqual(
+            get_time_account_balance(self.employee),
+            -420,
+        )
+
     def test_full_day_leave_creates_no_ledger_entry(
         self,
     ):
