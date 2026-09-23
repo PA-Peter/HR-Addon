@@ -15,6 +15,12 @@ from hr_addon.hr_addon.doctype.workday.workday import (
     parse_employee_checkins,
 )
 
+from hr_addon.hr_addon.doctype.time_account_ledger_entry.time_account_ledger_entry import (
+    ENTRY_TYPE_REVERSAL,
+    ENTRY_TYPE_WORKDAY,
+    get_time_account_balance,
+)
+
 IGNORE_TEST_RECORD_DEPENDENCIES = [
     "Employee",
     "Company",
@@ -369,6 +375,421 @@ class TestWorkdayFailClosedDelta(UnitTestCase):
             workday.daily_delta_minutes,
             0,
         )
+
+class TestWorkdayLedgerLifecycle(IntegrationTestCase):
+    def setUp(self):
+        super().setUp()
+
+        self.company = frappe.get_all(
+            "Company",
+            pluck="name",
+            limit=1,
+        )[0]
+
+        gender = frappe.get_all(
+            "Gender",
+            pluck="name",
+            limit=1,
+        )[0]
+
+        self.employee = frappe.get_doc(
+            {
+                "doctype": "Employee",
+                "naming_series": "HR-EMP-",
+                "first_name": (
+                    "Workday Ledger Test "
+                    f"{self._testMethodName}"
+                ),
+                "company": self.company,
+                "date_of_birth": "1990-01-01",
+                "date_of_joining": "2026-01-01",
+                "gender": gender,
+                "status": "Active",
+            }
+        ).insert().name
+
+    def _new_workday(
+        self,
+        log_date="2026-09-18",
+    ):
+        return Workday(
+            {
+                "doctype": "Workday",
+                "employee": self.employee,
+                "log_date": log_date,
+                "company": self.company,
+            }
+        )
+
+    def _get_ledger_rows(
+        self,
+        workday_name,
+    ):
+        return frappe.get_all(
+            "Time Account Ledger Entry",
+            filters={
+                "voucher_type": "Workday",
+                "voucher_no": workday_name,
+            },
+            fields=[
+                "name",
+                "entry_type",
+                "delta_minutes",
+                "reverses_entry",
+            ],
+            order_by="creation asc, name asc",
+        )
+
+    def _persist_with_forced_delta(
+        self,
+        workday,
+        delta_minutes,
+        insert=False,
+    ):
+        def set_actual_employee_log():
+            workday.status = ""
+            workday.first_checkin = "TEST-IN"
+            workday.last_checkout = "TEST-OUT"
+
+            workday.target_hours = 0
+            workday.raw_work_minutes = 0
+            workday.physical_break_minutes = 0
+            workday.qualifying_break_minutes = 0
+            workday.required_break_minutes = 0
+            workday.automatic_break_deduction_minutes = 0
+            workday.accountable_minutes = 0
+            workday.employee_checkins = []
+
+        def finalize_minute_evaluation(
+            absence_credit_cap_minutes=0,
+            delta_is_valid=True,
+        ):
+            workday.target_minutes = 0
+            workday.absence_credit_minutes = 0
+            workday.daily_delta_minutes = delta_minutes
+
+        with (
+            patch.object(
+                workday,
+                "set_actual_employee_log",
+                side_effect=set_actual_employee_log,
+            ),
+            patch.object(
+                workday,
+                "set_status_for_leave_application",
+                return_value=0,
+            ),
+            patch.object(
+                workday,
+                "finalize_minute_evaluation",
+                side_effect=finalize_minute_evaluation,
+            ),
+        ):
+            if insert:
+                return workday.insert()
+
+            return workday.save()
+
+    def _insert_empty_scheduled_day(
+        self,
+        target_hours,
+        absence_credit_cap_minutes=0,
+        status="",
+    ):
+        workday = self._new_workday()
+
+        def set_actual_employee_log():
+            workday.status = status
+            workday.first_checkin = None
+            workday.last_checkout = None
+
+            workday.target_hours = target_hours
+            workday.raw_work_minutes = 0
+            workday.physical_break_minutes = 0
+            workday.qualifying_break_minutes = 0
+            workday.required_break_minutes = 0
+            workday.automatic_break_deduction_minutes = 0
+            workday.accountable_minutes = 0
+            workday.employee_checkins = []
+
+        def set_status_for_leave_application():
+            if absence_credit_cap_minutes:
+                workday.status = "On Leave"
+
+            return absence_credit_cap_minutes
+
+        settings = frappe._dict(
+            workday_break_calculation_mechanism=(
+                MECHANISM_MINIMUM_BREAK_RULE
+            )
+        )
+
+        with (
+            patch.object(
+                workday,
+                "set_actual_employee_log",
+                side_effect=set_actual_employee_log,
+            ),
+            patch.object(
+                workday,
+                "set_status_for_leave_application",
+                side_effect=set_status_for_leave_application,
+            ),
+            patch(
+                "hr_addon.hr_addon.doctype.workday.workday."
+                "frappe.get_cached_doc",
+                return_value=settings,
+            ),
+        ):
+            workday.insert()
+
+        return workday
+
+    def test_insert_posts_workday_delta(self):
+        workday = self._new_workday()
+
+        self._persist_with_forced_delta(
+            workday,
+            15,
+            insert=True,
+        )
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+        self.assertEqual(
+            rows[0].delta_minutes,
+            15,
+        )
+        self.assertEqual(
+            get_time_account_balance(self.employee),
+            15,
+        )
+
+    def test_unchanged_save_is_idempotent(self):
+        workday = self._new_workday()
+
+        self._persist_with_forced_delta(
+            workday,
+            15,
+            insert=True,
+        )
+
+        self._persist_with_forced_delta(
+            workday,
+            15,
+        )
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+        self.assertEqual(
+            rows[0].delta_minutes,
+            15,
+        )
+
+    def test_corrected_save_reverses_and_posts_new_delta(self):
+        workday = self._new_workday()
+
+        self._persist_with_forced_delta(
+            workday,
+            15,
+            insert=True,
+        )
+
+        self._persist_with_forced_delta(
+            workday,
+            8,
+        )
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(len(rows), 3)
+
+        self.assertEqual(
+            rows[0].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+        self.assertEqual(
+            rows[0].delta_minutes,
+            15,
+        )
+
+        self.assertEqual(
+            rows[1].entry_type,
+            ENTRY_TYPE_REVERSAL,
+        )
+        self.assertEqual(
+            rows[1].delta_minutes,
+            -15,
+        )
+        self.assertEqual(
+            rows[1].reverses_entry,
+            rows[0].name,
+        )
+
+        self.assertEqual(
+            rows[2].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+        self.assertEqual(
+            rows[2].delta_minutes,
+            8,
+        )
+
+        self.assertEqual(
+            get_time_account_balance(self.employee),
+            8,
+        )
+
+    def test_corrected_save_to_zero_only_reverses_old_delta(
+        self,
+    ):
+        workday = self._new_workday()
+
+        self._persist_with_forced_delta(
+            workday,
+            15,
+            insert=True,
+        )
+
+        self._persist_with_forced_delta(
+            workday,
+            0,
+        )
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(len(rows), 2)
+
+        self.assertEqual(
+            rows[0].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+        self.assertEqual(
+            rows[0].delta_minutes,
+            15,
+        )
+
+        self.assertEqual(
+            rows[1].entry_type,
+            ENTRY_TYPE_REVERSAL,
+        )
+        self.assertEqual(
+            rows[1].delta_minutes,
+            -15,
+        )
+        self.assertEqual(
+            rows[1].reverses_entry,
+            rows[0].name,
+        )
+
+        self.assertEqual(
+            get_time_account_balance(self.employee),
+            0,
+        )
+
+    def test_empty_scheduled_day_posts_negative_target_delta(
+        self,
+    ):
+        workday = self._insert_empty_scheduled_day(
+            target_hours=7,
+        )
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(
+            workday.target_minutes,
+            420,
+        )
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            -420,
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            rows[0].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+        self.assertEqual(
+            rows[0].delta_minutes,
+            -420,
+        )
+
+        self.assertEqual(
+            get_time_account_balance(self.employee),
+            -420,
+        )
+
+    def test_full_day_leave_creates_no_ledger_entry(
+        self,
+    ):
+        workday = self._insert_empty_scheduled_day(
+            target_hours=8,
+            absence_credit_cap_minutes=480,
+        )
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(
+            workday.target_minutes,
+            480,
+        )
+        self.assertEqual(
+            workday.absence_credit_minutes,
+            480,
+        )
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            0,
+        )
+        self.assertEqual(
+            rows,
+            [],
+        )
+
+    def test_missing_checkin_creates_no_ledger_entry(
+        self,
+    ):
+        workday = self._insert_empty_scheduled_day(
+            target_hours=8,
+            status="Missing Checkin",
+        )
+
+        rows = self._get_ledger_rows(
+            workday.name
+        )
+
+        self.assertEqual(
+            workday.daily_delta_minutes,
+            0,
+        )
+        self.assertEqual(
+            rows,
+            [],
+        )
+
 
 class TestWorkday(IntegrationTestCase):
     def setUp(self):
