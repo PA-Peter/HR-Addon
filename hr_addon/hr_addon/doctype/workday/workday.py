@@ -63,6 +63,13 @@ class Workday(Document):
 				alert=True,
 			)
 
+	def on_update(self):
+		from hr_addon.hr_addon.doctype.time_account_ledger_entry.time_account_ledger_entry import (
+			post_workday,
+		)
+
+		post_workday(self.name)
+
 	def set_actual_employee_log(self):
 		new_workday_dict = get_actual_employee_log(self.employee, self.log_date)
 		if new_workday_dict is None:
