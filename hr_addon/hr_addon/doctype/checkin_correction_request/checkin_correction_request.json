@@ -1,0 +1,230 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:CCR-{YYYY}-{#####}",
+ "creation": "2026-09-24 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "request_section",
+  "employee",
+  "employee_name",
+  "correction_date",
+  "request_column",
+  "correction_type",
+  "existing_checkin",
+  "existing_section",
+  "current_log_type",
+  "current_time",
+  "current_skip_auto_attendance",
+  "requested_section",
+  "requested_log_type",
+  "requested_time",
+  "reason",
+  "workflow_section",
+  "status",
+  "workflow_column",
+  "applied_checkin",
+  "affected_workday",
+  "reprocessing_log",
+  "decision_section",
+  "decided_by",
+  "decided_at",
+  "rejection_reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "request_section",
+   "fieldtype": "Section Break",
+   "label": "Correction Request"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "correction_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Correction Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "request_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "correction_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Correction Type",
+   "options": "Missing Booking\nWrong IN/OUT Type\nAccidental Extra Booking",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.correction_type != 'Missing Booking'",
+   "fieldname": "existing_checkin",
+   "fieldtype": "Link",
+   "label": "Existing Employee Checkin",
+   "options": "Employee Checkin"
+  },
+  {
+   "depends_on": "eval:doc.existing_checkin",
+   "fieldname": "existing_section",
+   "fieldtype": "Section Break",
+   "label": "Existing Checkin Snapshot"
+  },
+  {
+   "fieldname": "current_log_type",
+   "fieldtype": "Data",
+   "label": "Current Log Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "current_time",
+   "fieldtype": "Datetime",
+   "label": "Current Time",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "current_skip_auto_attendance",
+   "fieldtype": "Check",
+   "label": "Currently Skipped",
+   "read_only": 1
+  },
+  {
+   "fieldname": "requested_section",
+   "fieldtype": "Section Break",
+   "label": "Requested Correction"
+  },
+  {
+   "depends_on": "eval:doc.correction_type == 'Missing Booking' || doc.correction_type == 'Wrong IN/OUT Type'",
+   "fieldname": "requested_log_type",
+   "fieldtype": "Select",
+   "label": "Requested Log Type",
+   "options": "\nIN\nOUT"
+  },
+  {
+   "depends_on": "eval:doc.correction_type == 'Missing Booking'",
+   "fieldname": "requested_time",
+   "fieldtype": "Datetime",
+   "label": "Requested Time"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "reqd": 1
+  },
+  {
+   "fieldname": "workflow_section",
+   "fieldtype": "Section Break",
+   "label": "Processing"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nPending Approval\nApplied\nRejected",
+   "read_only": 1
+  },
+  {
+   "fieldname": "workflow_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "applied_checkin",
+   "fieldtype": "Link",
+   "label": "Applied Employee Checkin",
+   "options": "Employee Checkin",
+   "read_only": 1
+  },
+  {
+   "fieldname": "affected_workday",
+   "fieldtype": "Link",
+   "label": "Affected Workday",
+   "options": "Workday",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reprocessing_log",
+   "fieldtype": "Link",
+   "label": "Reprocessing Log",
+   "options": "Workday Reprocessing Log",
+   "read_only": 1
+  },
+  {
+   "fieldname": "decision_section",
+   "fieldtype": "Section Break",
+   "label": "Decision"
+  },
+  {
+   "fieldname": "decided_by",
+   "fieldtype": "Link",
+   "label": "Decided By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "decided_at",
+   "fieldtype": "Datetime",
+   "label": "Decided At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-24 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR Addon",
+ "name": "Checkin Correction Request",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
