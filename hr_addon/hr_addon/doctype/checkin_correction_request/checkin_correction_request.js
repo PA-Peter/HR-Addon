@@ -158,15 +158,18 @@ function add_submit_button(frm) {
 
 	frm.add_custom_button(
 		__("Submit for Approval"),
-		() => {
-			call_request_method(
+		async () => {
+			if (frm.is_dirty()) {
+				await frm.save();
+			}
+
+			return call_request_method(
 				frm,
 				"submit_correction_request"
 			);
 		}
 	);
 }
-
 
 function approve_request(
 	frm,
