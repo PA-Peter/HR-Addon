@@ -14,6 +14,16 @@ MANAGEMENT_ROLES = frozenset(
 )
 
 
+SELF_SERVICE_PROTECTED_FIELDS = (
+    "applied_checkin",
+    "affected_workday",
+    "reprocessing_log",
+    "decided_by",
+    "decided_at",
+    "rejection_reason",
+)
+
+
 def _get_user(user=None):
     return (
         user
@@ -135,6 +145,23 @@ def validate_self_service_employee(
                 "Employees may only create or edit "
                 "Checkin Correction Requests for "
                 "their own Employee record."
+            ),
+            frappe.PermissionError,
+        )
+
+    protected_fields_set = [
+        fieldname
+        for fieldname
+        in SELF_SERVICE_PROTECTED_FIELDS
+        if doc.get(fieldname)
+    ]
+
+    if protected_fields_set:
+        frappe.throw(
+            _(
+                "Employees may not set processing, "
+                "decision or audit fields on a "
+                "Checkin Correction Request."
             ),
             frappe.PermissionError,
         )
