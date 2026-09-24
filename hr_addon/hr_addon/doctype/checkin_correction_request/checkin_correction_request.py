@@ -680,3 +680,38 @@ def approve_correction_request(
             ),
         }
     )
+
+@frappe.whitelist()
+def submit_correction_request(
+    request_name,
+):
+    _lock_request(request_name)
+
+    request = _get_request(
+        request_name
+    )
+
+    request.check_permission(
+        "write"
+    )
+
+    if request.status != STATUS_DRAFT:
+        frappe.throw(
+            _(
+                "Only Draft Checkin Correction "
+                "Requests can be submitted."
+            )
+        )
+
+    request.status = STATUS_PENDING
+
+    _save_service_transition(
+        request
+    )
+
+    return frappe._dict(
+        {
+            "request": request.name,
+            "status": request.status,
+        }
+    )
