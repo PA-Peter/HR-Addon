@@ -584,3 +584,30 @@ class TestCheckinCorrectionRequest(
             kwargs["source_name"],
             request.name,
         )
+
+    def test_submit_requires_write_permission(
+        self,
+    ):
+        request = self._make_missing_request()
+
+        with patch(
+            "hr_addon.hr_addon.doctype."
+            "checkin_correction_request."
+            "checkin_correction_request."
+            "CheckinCorrectionRequest."
+            "check_permission",
+            side_effect=frappe.PermissionError,
+        ):
+            with self.assertRaises(
+                frappe.PermissionError
+            ):
+                submit_correction_request(
+                    request.name
+                )
+
+        request.reload()
+
+        self.assertEqual(
+            request.status,
+            STATUS_DRAFT,
+        )
