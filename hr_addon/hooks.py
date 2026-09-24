@@ -17,18 +17,49 @@ fixtures = [
 		["module", "=", "HR Addon"]
 	]}
 ]
+
 doctype_js = {
-	"HR Settings" : "public/js/hr_settings.js"
+	"HR Settings": "public/js/hr_settings.js"
 }
 
 required_apps = ["hrms"]
+
+
+permission_query_conditions = {
+	"Checkin Correction Request": (
+		"hr_addon.hr_addon.doctype."
+		"checkin_correction_request."
+		"checkin_correction_request_permissions."
+		"get_permission_query_conditions"
+	)
+}
+
+
+has_permission = {
+	"Checkin Correction Request": (
+		"hr_addon.hr_addon.doctype."
+		"checkin_correction_request."
+		"checkin_correction_request_permissions."
+		"has_permission"
+	)
+}
+
 
 doc_events = {
 	"Leave Application": {
 		"on_change": "hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.export_calendar",
 		"on_cancel": "hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.export_calendar"
+	},
+	"Checkin Correction Request": {
+		"validate": (
+			"hr_addon.hr_addon.doctype."
+			"checkin_correction_request."
+			"checkin_correction_request_permissions."
+			"validate_self_service_employee"
+		)
 	}
 }
+
 
 scheduler_events = {
 	"daily": [
