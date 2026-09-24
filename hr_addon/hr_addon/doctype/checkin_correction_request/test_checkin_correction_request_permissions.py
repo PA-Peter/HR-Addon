@@ -290,3 +290,35 @@ class TestCheckinCorrectionRequestPermissions(
             validate_self_service_employee(
                 doc
             )
+
+    def test_self_service_cannot_set_audit_fields(
+        self,
+    ):
+        doc = self._doc(
+            "HR-EMP-SELF"
+        )
+
+        doc.reprocessing_log = (
+            "WRL-FAKE"
+        )
+
+        with (
+            patch(
+                f"{MODULE}._get_user",
+                return_value="employee@example.com",
+            ),
+            patch(
+                f"{MODULE}._has_management_access",
+                return_value=False,
+            ),
+            patch(
+                f"{MODULE}._get_employee_for_user",
+                return_value="HR-EMP-SELF",
+            ),
+        ):
+            with self.assertRaises(
+                frappe.PermissionError
+            ):
+                validate_self_service_employee(
+                    doc
+                )
