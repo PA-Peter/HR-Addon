@@ -16,13 +16,13 @@ MECHANISM_MINIMUM_BREAK_RULE = "Break Hours from Minimum Break Rule"
 
 class Workday(Document):
 	def validate(self):
-        from hr_addon.hr_addon.doctype.workday_reprocessing_log.workday_reprocessing_log import (
-            validate_workday_period_for_save,
-        )
+		from hr_addon.hr_addon.doctype.workday_reprocessing_log.workday_reprocessing_log import (
+			validate_workday_period_for_save,
+		)
 
-        validate_workday_period_for_save(
-            self
-        )
+		validate_workday_period_for_save(
+			self
+		)
 
 		self.set_actual_employee_log()
 		self.validate_duplicate_workday()
