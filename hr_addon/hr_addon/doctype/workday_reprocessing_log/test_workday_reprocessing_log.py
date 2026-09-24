@@ -14,7 +14,9 @@ from hr_addon.hr_addon.doctype.workday_reprocessing_log.workday_reprocessing_log
 
 IGNORE_TEST_RECORD_DEPENDENCIES = [
     "Employee",
+    "Workday",
     "DocType",
+    "User",
 ]
 
 
