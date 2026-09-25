@@ -4,6 +4,7 @@
  "autoname": "field:title_hour",
  "creation": "2022-05-05 01:42:08.757292",
  "doctype": "DocType",
+ "default_view": "Report",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
@@ -139,6 +140,7 @@
  "owner": "Administrator",
  "permissions": [
   {
+   "amend": 1,
    "cancel": 1,
    "create": 1,
    "delete": 1,
@@ -153,6 +155,7 @@
    "write": 1
   },
   {
+   "amend": 1,
    "cancel": 1,
    "create": 1,
    "delete": 1,
