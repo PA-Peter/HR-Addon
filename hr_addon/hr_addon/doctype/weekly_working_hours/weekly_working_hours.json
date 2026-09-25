@@ -28,7 +28,6 @@
   {
    "fieldname": "title_hour",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Hour Title",
    "read_only": 1,
    "set_only_once": 1,
@@ -46,18 +45,21 @@
    "fieldname": "employee_name",
    "fieldtype": "Data",
    "label": "Employee Name",
-   "read_only": 1
+   "read_only": 1,
+   "in_list_view": 1
   },
   {
    "fieldname": "valid_from",
    "fieldtype": "Date",
    "label": "From Date",
-   "reqd": 1
+   "reqd": 1,
+   "in_list_view": 1
   },
   {
    "fieldname": "valid_to",
    "fieldtype": "Date",
-   "label": "To Date"
+   "label": "To Date",
+   "in_list_view": 1
   },
   {
    "fieldname": "column_break_6",
@@ -82,7 +84,8 @@
    "fieldname": "total_work_hours",
    "fieldtype": "Float",
    "label": "Total Work Hours",
-   "read_only": 1
+   "read_only": 1,
+   "in_list_view": 1
   },
   {
    "fieldname": "amended_from",
@@ -116,13 +119,15 @@
    "description": "Disables automatic minimum-break deduction for this working-hours model. Physical OUT-IN breaks remain non-working time.",
    "fieldname": "disable_minimum_break_rule",
    "fieldtype": "Check",
-   "label": "Disable Automatic Minimum Break"
+   "label": "Disable Automatic Minimum Break",
+   "in_list_view": 1
   },
   {
    "default": "0",
    "fieldname": "set_target_hours_to_zero_when_date_is_holiday",
    "fieldtype": "Check",
-   "label": "Set Target Hours to Zero when date is holiday"
+   "label": "Set Target Hours to Zero when date is holiday",
+   "in_list_view": 1
   }
  ],
  "is_submittable": 1,
@@ -134,6 +139,7 @@
  "owner": "Administrator",
  "permissions": [
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -143,9 +149,11 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "submit": 1,
    "write": 1
   },
   {
+   "cancel": 1,
    "create": 1,
    "delete": 1,
    "email": 1,
