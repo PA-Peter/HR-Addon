@@ -57,7 +57,7 @@ class TestPunchService(IntegrationTestCase):
         self.device_id = (
             "00" + frappe.generate_hash(length=10)
         )
-        
+
         self.employee = self.make_employee(
             attendance_device_id=self.device_id
         )
@@ -288,6 +288,10 @@ class TestPunchService(IntegrationTestCase):
     def test_unknown_device_id_is_rejected(
         self,
     ):
+        before_count = len(
+            self.get_kiosk_checkins()
+        )
+
         with self.assertRaises(
             frappe.ValidationError
         ):
@@ -301,11 +305,14 @@ class TestPunchService(IntegrationTestCase):
                 ),
             )
 
-        self.assertEqual(
-            self.get_kiosk_checkins(),
-            [],
+        after_count = len(
+            self.get_kiosk_checkins()
         )
 
+        self.assertEqual(
+            after_count,
+            before_count,
+        )
     def test_inactive_employee_is_rejected(
         self,
     ):
