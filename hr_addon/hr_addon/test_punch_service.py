@@ -54,10 +54,12 @@ class TestPunchService(IntegrationTestCase):
             limit=1,
         )[0]
 
+        self.device_id = (
+            "00" + frappe.generate_hash(length=10)
+        )
+        
         self.employee = self.make_employee(
-            attendance_device_id=(
-                "0012345678"
-            )
+            attendance_device_id=self.device_id
         )
 
     def make_employee(
@@ -196,7 +198,7 @@ class TestPunchService(IntegrationTestCase):
     ):
         result = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="IN",
             current_time=(
@@ -257,7 +259,7 @@ class TestPunchService(IntegrationTestCase):
     ):
         result = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="IN",
             current_time=(
@@ -320,7 +322,7 @@ class TestPunchService(IntegrationTestCase):
         ):
             process_punch(
                 attendance_device_id=(
-                    "0012345678"
+                    self.device_id
                 ),
                 log_type="IN",
                 current_time=(
@@ -343,7 +345,7 @@ class TestPunchService(IntegrationTestCase):
         ):
             process_punch(
                 attendance_device_id=(
-                    "0012345678"
+                    self.device_id
                 ),
                 log_type="BREAK",
                 current_time=(
@@ -356,7 +358,7 @@ class TestPunchService(IntegrationTestCase):
     ):
         first = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="IN",
             current_time=(
@@ -366,7 +368,7 @@ class TestPunchService(IntegrationTestCase):
 
         second = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="IN",
             current_time=(
@@ -401,7 +403,7 @@ class TestPunchService(IntegrationTestCase):
     ):
         first = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="IN",
             current_time=(
@@ -411,7 +413,7 @@ class TestPunchService(IntegrationTestCase):
 
         second = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="OUT",
             current_time=(
@@ -475,7 +477,7 @@ class TestPunchService(IntegrationTestCase):
 
         result = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="IN",
             current_time=(
@@ -527,7 +529,7 @@ class TestPunchService(IntegrationTestCase):
 
         result = process_punch(
             attendance_device_id=(
-                "0012345678"
+                self.device_id
             ),
             log_type="IN",
             current_time=(
@@ -553,7 +555,7 @@ class TestPunchService(IntegrationTestCase):
             ):
                 punch(
                     attendance_device_id=(
-                        "0012345678"
+                        self.device_id
                     ),
                     log_type="IN",
                 )
