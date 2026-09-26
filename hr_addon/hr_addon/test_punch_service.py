@@ -17,12 +17,6 @@ from hr_addon.hr_addon.punch_service import (
 )
 
 
-IGNORE_TEST_RECORD_DEPENDENCIES = [
-    "Employee",
-    "DocType",
-]
-
-
 class TestPunchService(IntegrationTestCase):
     def setUp(self):
         super().setUp()
