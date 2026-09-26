@@ -549,7 +549,22 @@ class TestPunchService(IntegrationTestCase):
             2,
         )
 
-    def test_public_endpoint_requires_authentication(
+        def test_public_endpoint_is_guest_whitelisted_and_post_only(
+        self,
+    ):
+        self.assertIn(
+            punch,
+            frappe.guest_methods,
+        )
+
+        self.assertEqual(
+            frappe.allowed_http_methods_for_whitelisted_func[
+                punch
+            ],
+            ["POST"],
+        )
+
+    def test_public_endpoint_allows_guest_punch(
         self,
     ):
         frappe.set_user(
@@ -557,15 +572,42 @@ class TestPunchService(IntegrationTestCase):
         )
 
         try:
-            with self.assertRaises(
-                frappe.PermissionError
-            ):
-                punch(
-                    attendance_device_id=(
-                        self.device_id
-                    ),
-                    log_type="IN",
-                )
+            result = punch(
+                attendance_device_id=(
+                    self.device_id
+                ),
+                log_type="IN",
+            )
+
+            checkin = frappe.get_doc(
+                "Employee Checkin",
+                result.employee_checkin,
+            )
+
+            self.assertEqual(
+                result.employee,
+                self.employee.name,
+            )
+
+            self.assertEqual(
+                result.log_type,
+                "IN",
+            )
+
+            self.assertEqual(
+                checkin.employee,
+                self.employee.name,
+            )
+
+            self.assertEqual(
+                checkin.log_type,
+                "IN",
+            )
+
+            self.assertEqual(
+                checkin.device_id,
+                KIOSK_DEVICE_ID,
+            )
         finally:
             frappe.set_user(
                 "Administrator"
