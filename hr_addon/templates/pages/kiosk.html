@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
+    >
+
+    <title>Zeiterfassung</title>
+
+    <style>
+        :root {
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            color-scheme: light;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #f3f4f6;
+            color: #111827;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .kiosk {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding:
+                max(28px, env(safe-area-inset-top))
+                max(28px, env(safe-area-inset-right))
+                max(28px, env(safe-area-inset-bottom))
+                max(28px, env(safe-area-inset-left));
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .title {
+            margin: 0;
+            font-size: clamp(34px, 5vw, 58px);
+            font-weight: 700;
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            font-size: clamp(18px, 2vw, 25px);
+            color: #4b5563;
+        }
+
+        .buttons {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            min-height: 0;
+        }
+
+        .punch-button {
+            border: 0;
+            border-radius: 28px;
+            color: white;
+            cursor: pointer;
+            font-size: clamp(42px, 7vw, 86px);
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            transition:
+                transform 100ms ease,
+                opacity 100ms ease,
+                box-shadow 100ms ease;
+        }
+
+        .punch-button:active {
+            transform: scale(0.985);
+        }
+
+        .punch-button:disabled {
+            cursor: default;
+        }
+
+        .punch-button.in {
+            background: #15803d;
+        }
+
+        .punch-button.out {
+            background: #b91c1c;
+        }
+
+        .punch-button.selected {
+            box-shadow:
+                0 0 0 8px white,
+                0 0 0 13px #111827;
+        }
+
+        .punch-button.dimmed {
+            opacity: 0.28;
+        }
+
+        .instruction {
+            min-height: 66px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding-top: 24px;
+            font-size: clamp(20px, 2.5vw, 30px);
+            font-weight: 600;
+        }
+
+        .result {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 36px;
+            background: rgba(17, 24, 39, 0.94);
+        }
+
+        .result.visible {
+            display: flex;
+        }
+
+        .result-card {
+            position: relative;
+            width: min(900px, 100%);
+            max-height: 92vh;
+            overflow: auto;
+            border-radius: 30px;
+            background: white;
+            padding: 48px;
+            text-align: center;
+            box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        .result.success .result-card {
+            border-top: 14px solid #15803d;
+        }
+
+        .result.error .result-card {
+            border-top: 14px solid #b91c1c;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 18px;
+            right: 22px;
+            width: 52px;
+            height: 52px;
+            border: 0;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-size: 30px;
+            line-height: 1;
+        }
+
+        .result-name {
+            margin: 12px 60px 10px;
+            font-size: clamp(34px, 5vw, 58px);
+            font-weight: 800;
+        }
+
+        .result-action {
+            margin: 8px 0 0;
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 800;
+        }
+
+        .result-time {
+            margin: 8px 0 34px;
+            font-size: clamp(38px, 6vw, 66px);
+            font-weight: 700;
+        }
+
+        .balance {
+            margin: 0 auto;
+            max-width: 560px;
+            padding: 24px;
+            border-radius: 22px;
+            background: #f3f4f6;
+        }
+
+        .balance-label {
+            font-size: 20px;
+            color: #4b5563;
+        }
+
+        .balance-value {
+            margin-top: 6px;
+            font-size: clamp(36px, 5vw, 54px);
+            font-weight: 800;
+        }
+
+        .warning {
+            display: none;
+            margin: 26px auto 0;
+            max-width: 680px;
+            padding: 22px;
+            border-radius: 18px;
+            background: #fef3c7;
+            color: #78350f;
+            font-size: clamp(19px, 2.2vw, 26px);
+            font-weight: 700;
+        }
+
+        .warning.visible {
+            display: block;
+        }
+
+        .debounce-note {
+            display: none;
+            margin-top: 22px;
+            color: #4b5563;
+            font-size: 18px;
+        }
+
+        .debounce-note.visible {
+            display: block;
+        }
+
+        .error-title {
+            margin: 24px 50px 20px;
+            font-size: clamp(32px, 5vw, 56px);
+            font-weight: 900;
+            color: #991b1b;
+        }
+
+        .error-detail {
+            font-size: clamp(20px, 2.4vw, 28px);
+            line-height: 1.4;
+        }
+
+        .error-note {
+            margin-top: 28px;
+            font-size: 19px;
+            color: #4b5563;
+        }
+
+        @media (max-width: 760px) {
+            .buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .kiosk {
+                padding: 18px;
+            }
+
+            .result {
+                padding: 18px;
+            }
+
+            .result-card {
+                padding: 34px 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="kiosk">
+        <header class="header">
+            <h1 class="title">Zeiterfassung</h1>
+            <div class="subtitle">
+                Buchungsart wählen und RFID-Karte vorhalten
+            </div>
+        </header>
+
+        <section class="buttons">
+            <button
+                id="button-in"
+                class="punch-button in"
+                type="button"
+            >
+                KOMMT
+            </button>
+
+            <button
+                id="button-out"
+                class="punch-button out"
+                type="button"
+            >
+                GEHT
+            </button>
+        </section>
+
+        <div
+            id="instruction"
+            class="instruction"
+        >
+            KOMMT oder GEHT wählen
+        </div>
+    </main>
+
+    <section
+        id="result"
+        class="result"
+        aria-live="assertive"
+    >
+        <div class="result-card">
+            <button
+                id="close-result"
+                class="close-button"
+                type="button"
+                aria-label="Schließen"
+            >
+                ×
+            </button>
+
+            <div id="success-content">
+                <div
+                    id="result-name"
+                    class="result-name"
+                ></div>
+
+                <div
+                    id="result-action"
+                    class="result-action"
+                ></div>
+
+                <div
+                    id="result-time"
+                    class="result-time"
+                ></div>
+
+                <div class="balance">
+                    <div
+                        id="balance-label"
+                        class="balance-label"
+                    ></div>
+
+                    <div
+                        id="balance-value"
+                        class="balance-value"
+                    ></div>
+                </div>
+
+                <div
+                    id="warning"
+                    class="warning"
+                ></div>
+
+                <div
+                    id="debounce-note"
+                    class="debounce-note"
+                >
+                    Mehrfachscan erkannt – die vorhandene Buchung wurde verwendet.
+                </div>
+            </div>
+
+            <div
+                id="error-content"
+                hidden
+            >
+                <div class="error-title">
+                    BUCHUNG NICHT ÜBERNOMMEN
+                </div>
+
+                <div
+                    id="error-detail"
+                    class="error-detail"
+                ></div>
+
+                <div class="error-note">
+                    Arbeitszeit bei Bedarf manuell notieren.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        var frappe = window.frappe = window.frappe || {};
+    </script>
+
+    <!-- csrf_token -->
+
+    <script>
+        (() => {
+            "use strict";
+
+            const PUNCH_URL =
+                "/api/method/hr_addon.hr_addon.punch_service.punch";
+
+            const SELECTION_TIMEOUT_MS = 20000;
+            const SUCCESS_TIMEOUT_MS = 30000;
+            const ERROR_TIMEOUT_MS = 12000;
+            const REQUEST_TIMEOUT_MS = 8000;
+
+            const buttonIn =
+                document.getElementById("button-in");
+
+            const buttonOut =
+                document.getElementById("button-out");
+
+            const instruction =
+                document.getElementById("instruction");
+
+            const result =
+                document.getElementById("result");
+
+            const closeResult =
+                document.getElementById("close-result");
+
+            const successContent =
+                document.getElementById("success-content");
+
+            const errorContent =
+                document.getElementById("error-content");
+
+            const resultName =
+                document.getElementById("result-name");
+
+            const resultAction =
+                document.getElementById("result-action");
+
+            const resultTime =
+                document.getElementById("result-time");
+
+            const balanceLabel =
+                document.getElementById("balance-label");
+
+            const balanceValue =
+                document.getElementById("balance-value");
+
+            const warning =
+                document.getElementById("warning");
+
+            const debounceNote =
+                document.getElementById("debounce-note");
+
+            const errorDetail =
+                document.getElementById("error-detail");
+
+            let selectedLogType = null;
+            let tokenBuffer = "";
+            let selectionTimer = null;
+            let resultTimer = null;
+            let busy = false;
+            let audioContext = null;
+
+            function ensureAudio() {
+                if (!audioContext) {
+                    const AudioContextClass =
+                        window.AudioContext ||
+                        window.webkitAudioContext;
+
+                    if (AudioContextClass) {
+                        audioContext =
+                            new AudioContextClass();
+                    }
+                }
+
+                if (
+                    audioContext &&
+                    audioContext.state === "suspended"
+                ) {
+                    audioContext.resume();
+                }
+            }
+
+            function tone(
+                frequency,
+                duration,
+                delay = 0
+            ) {
+                if (!audioContext) {
+                    return;
+                }
+
+                const start =
+                    audioContext.currentTime + delay;
+
+                const oscillator =
+                    audioContext.createOscillator();
+
+                const gain =
+                    audioContext.createGain();
+
+                oscillator.frequency.value =
+                    frequency;
+
+                oscillator.type = "sine";
+
+                gain.gain.setValueAtTime(
+                    0.0001,
+                    start
+                );
+
+                gain.gain.exponentialRampToValueAtTime(
+                    0.18,
+                    start + 0.01
+                );
+
+                gain.gain.exponentialRampToValueAtTime(
+                    0.0001,
+                    start + duration
+                );
+
+                oscillator.connect(gain);
+                gain.connect(
+                    audioContext.destination
+                );
+
+                oscillator.start(start);
+                oscillator.stop(
+                    start + duration + 0.02
+                );
+            }
+
+            function successSound() {
+                tone(880, 0.12);
+            }
+
+            function invalidSound() {
+                tone(620, 0.10);
+                tone(620, 0.10, 0.18);
+            }
+
+            function serverErrorSound() {
+                tone(180, 0.55);
+            }
+
+            function clearTimers() {
+                if (selectionTimer) {
+                    clearTimeout(
+                        selectionTimer
+                    );
+
+                    selectionTimer = null;
+                }
+
+                if (resultTimer) {
+                    clearTimeout(
+                        resultTimer
+                    );
+
+                    resultTimer = null;
+                }
+            }
+
+            function resetIdle() {
+                clearTimers();
+
+                selectedLogType = null;
+                tokenBuffer = "";
+                busy = false;
+
+                buttonIn.disabled = false;
+                buttonOut.disabled = false;
+
+                buttonIn.classList.remove(
+                    "selected",
+                    "dimmed"
+                );
+
+                buttonOut.classList.remove(
+                    "selected",
+                    "dimmed"
+                );
+
+                instruction.textContent =
+                    "KOMMT oder GEHT wählen";
+
+                result.classList.remove(
+                    "visible",
+                    "success",
+                    "error"
+                );
+
+                successContent.hidden = false;
+                errorContent.hidden = true;
+
+                warning.classList.remove(
+                    "visible"
+                );
+
+                debounceNote.classList.remove(
+                    "visible"
+                );
+            }
+
+            function selectLogType(logType) {
+                if (busy) {
+                    return;
+                }
+
+                ensureAudio();
+                clearTimers();
+
+                selectedLogType = logType;
+                tokenBuffer = "";
+
+                const selectedButton =
+                    logType === "IN"
+                        ? buttonIn
+                        : buttonOut;
+
+                const otherButton =
+                    logType === "IN"
+                        ? buttonOut
+                        : buttonIn;
+
+                selectedButton.classList.add(
+                    "selected"
+                );
+
+                selectedButton.classList.remove(
+                    "dimmed"
+                );
+
+                otherButton.classList.remove(
+                    "selected"
+                );
+
+                otherButton.classList.add(
+                    "dimmed"
+                );
+
+                instruction.textContent =
+                    "RFID-Karte jetzt vorhalten";
+
+                selectionTimer = setTimeout(
+                    resetIdle,
+                    SELECTION_TIMEOUT_MS
+                );
+            }
+
+            function formatBalance(minutes) {
+                const value =
+                    Number(minutes) || 0;
+
+                if (value === 0) {
+                    return "0:00";
+                }
+
+                const sign =
+                    value > 0 ? "+" : "−";
+
+                const absolute =
+                    Math.abs(value);
+
+                const hours =
+                    Math.floor(
+                        absolute / 60
+                    );
+
+                const rest =
+                    absolute % 60;
+
+                return (
+                    sign +
+                    hours +
+                    ":" +
+                    String(rest).padStart(
+                        2,
+                        "0"
+                    )
+                );
+            }
+
+            function formatDate(value) {
+                const text =
+                    String(value || "");
+
+                const match =
+                    text.match(
+                        /^(\d{4})-(\d{2})-(\d{2})/
+                    );
+
+                if (!match) {
+                    return text;
+                }
+
+                return (
+                    match[3] +
+                    "." +
+                    match[2] +
+                    "." +
+                    match[1]
+                );
+            }
+
+            function formatTime(value) {
+                const text =
+                    String(value || "");
+
+                const match =
+                    text.match(
+                        /(\d{2}):(\d{2})/
+                    );
+
+                if (!match) {
+                    return text;
+                }
+
+                return (
+                    match[1] +
+                    ":" +
+                    match[2]
+                );
+            }
+
+            function showSuccess(data) {
+                clearTimers();
+
+                busy = false;
+                selectedLogType = null;
+                tokenBuffer = "";
+
+                successContent.hidden = false;
+                errorContent.hidden = true;
+
+                resultName.textContent =
+                    data.employee_name || "";
+
+                resultAction.textContent =
+                    data.log_type === "IN"
+                        ? "KOMMT"
+                        : "GEHT";
+
+                resultTime.textContent =
+                    formatTime(
+                        data.time
+                    );
+
+                balanceLabel.textContent =
+                    "Zeitkonto bis " +
+                    formatDate(
+                        data.balance_as_of
+                    );
+
+                balanceValue.textContent =
+                    formatBalance(
+                        data.balance_minutes
+                    );
+
+                const errorCount =
+                    Number(
+                        data.open_checkin_errors
+                    ) || 0;
+
+                if (errorCount > 0) {
+                    warning.textContent =
+                        errorCount === 1
+                            ? "⚠ 1 offener Stempelfehler – bitte im Self-Service prüfen."
+                            : "⚠ " +
+                              errorCount +
+                              " offene Stempelfehler – bitte im Self-Service prüfen.";
+
+                    warning.classList.add(
+                        "visible"
+                    );
+                } else {
+                    warning.classList.remove(
+                        "visible"
+                    );
+                }
+
+                if (data.debounced) {
+                    debounceNote.classList.add(
+                        "visible"
+                    );
+                } else {
+                    debounceNote.classList.remove(
+                        "visible"
+                    );
+                }
+
+                result.classList.remove(
+                    "error"
+                );
+
+                result.classList.add(
+                    "success",
+                    "visible"
+                );
+
+                successSound();
+
+                resultTimer = setTimeout(
+                    resetIdle,
+                    SUCCESS_TIMEOUT_MS
+                );
+            }
+
+            function payloadText(payload) {
+                try {
+                    return JSON.stringify(
+                        payload || {}
+                    );
+                } catch {
+                    return "";
+                }
+            }
+
+            function showError(
+                payload,
+                requestTimedOut = false
+            ) {
+                clearTimers();
+
+                busy = false;
+                selectedLogType = null;
+                tokenBuffer = "";
+
+                successContent.hidden = true;
+                errorContent.hidden = false;
+
+                const text =
+                    payloadText(payload);
+
+                if (
+                    text.includes(
+                        "No Employee is assigned"
+                    ) ||
+                    text.includes(
+                        "is not active"
+                    )
+                ) {
+                    errorDetail.textContent =
+                        "Karte nicht erkannt oder Mitarbeiter nicht freigeschaltet.";
+
+                    invalidSound();
+                } else if (
+                    requestTimedOut
+                ) {
+                    errorDetail.textContent =
+                        "Keine Antwort vom Server.";
+
+                    serverErrorSound();
+                } else {
+                    errorDetail.textContent =
+                        "Karte oder Serververbindung prüfen.";
+
+                    serverErrorSound();
+                }
+
+                result.classList.remove(
+                    "success"
+                );
+
+                result.classList.add(
+                    "error",
+                    "visible"
+                );
+
+                resultTimer = setTimeout(
+                    resetIdle,
+                    ERROR_TIMEOUT_MS
+                );
+            }
+
+            async function submitPunch(token) {
+                if (
+                    busy ||
+                    !selectedLogType
+                ) {
+                    return;
+                }
+
+                const cleanToken =
+                    String(token).trim();
+
+                if (!cleanToken) {
+                    return;
+                }
+
+                busy = true;
+
+                if (selectionTimer) {
+                    clearTimeout(
+                        selectionTimer
+                    );
+
+                    selectionTimer = null;
+                }
+
+                buttonIn.disabled = true;
+                buttonOut.disabled = true;
+
+                instruction.textContent =
+                    "Buchung wird gespeichert …";
+
+                const controller =
+                    new AbortController();
+
+                const timeout =
+                    setTimeout(
+                        () => controller.abort(),
+                        REQUEST_TIMEOUT_MS
+                    );
+
+                try {
+                    const headers = {
+                        "Accept":
+                            "application/json",
+                        "Content-Type":
+                            "application/json"
+                    };
+
+                    if (
+                        frappe.csrf_token
+                    ) {
+                        headers[
+                            "X-Frappe-CSRF-Token"
+                        ] =
+                            frappe.csrf_token;
+                    }
+
+                    const response =
+                        await fetch(
+                            PUNCH_URL,
+                            {
+                                method: "POST",
+                                credentials:
+                                    "same-origin",
+                                headers,
+                                body:
+                                    JSON.stringify(
+                                        {
+                                            attendance_device_id:
+                                                cleanToken,
+                                            log_type:
+                                                selectedLogType
+                                        }
+                                    ),
+                                signal:
+                                    controller.signal
+                            }
+                        );
+
+                    let payload = {};
+
+                    try {
+                        payload =
+                            await response.json();
+                    } catch {
+                        payload = {};
+                    }
+
+                    if (
+                        !response.ok ||
+                        !payload.message
+                    ) {
+                        showError(
+                            payload,
+                            false
+                        );
+
+                        return;
+                    }
+
+                    showSuccess(
+                        payload.message
+                    );
+                } catch (error) {
+                    console.error(
+                        "Kiosk punch failed:",
+                        error
+                    );
+
+                    showError(
+                        {},
+                        error &&
+                        error.name ===
+                            "AbortError"
+                    );
+                } finally {
+                    clearTimeout(timeout);
+                }
+            }
+
+            buttonIn.addEventListener(
+                "click",
+                () => selectLogType("IN")
+            );
+
+            buttonOut.addEventListener(
+                "click",
+                () => selectLogType("OUT")
+            );
+
+            closeResult.addEventListener(
+                "click",
+                resetIdle
+            );
+
+            document.addEventListener(
+                "keydown",
+                (event) => {
+                    if (
+                        event.key === "Escape"
+                    ) {
+                        event.preventDefault();
+                        resetIdle();
+                        return;
+                    }
+
+                    if (
+                        !selectedLogType ||
+                        busy
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        event.key === "Enter"
+                    ) {
+                        event.preventDefault();
+
+                        const token =
+                            tokenBuffer;
+
+                        tokenBuffer = "";
+
+                        submitPunch(token);
+                        return;
+                    }
+
+                    if (
+                        event.key ===
+                        "Backspace"
+                    ) {
+                        event.preventDefault();
+
+                        tokenBuffer =
+                            tokenBuffer.slice(
+                                0,
+                                -1
+                            );
+
+                        return;
+                    }
+
+                    if (
+                        event.key.length === 1
+                    ) {
+                        event.preventDefault();
+
+                        tokenBuffer +=
+                            event.key;
+                    }
+                }
+            );
+
+            resetIdle();
+        })();
+    </script>
+</body>
+</html>
