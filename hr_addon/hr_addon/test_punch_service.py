@@ -549,7 +549,7 @@ class TestPunchService(IntegrationTestCase):
             2,
         )
 
-        def test_public_endpoint_is_guest_whitelisted_and_post_only(
+    def test_public_endpoint_is_guest_whitelisted_and_post_only(
         self,
     ):
         self.assertIn(
