@@ -1460,6 +1460,29 @@ def create_background_job_for_workday_generation_after_install():
 	hr_addon_settings = frappe.get_doc("HR Addon Settings")
 	create_background_job_for_workday_generation(hr_addon_settings)
 
+def get_completed_workday_date_range(
+    reference_datetime=None,
+    days=7,
+):
+    """
+    Return the date range for the last fully completed calendar days.
+
+    The current calendar day is deliberately excluded because Employee
+    Checkins may still be added until the day has actually ended.
+    """
+    reference_datetime = (
+        reference_datetime
+        or frappe.utils.now_datetime()
+    )
+
+    reference_date = getdate(reference_datetime)
+
+    date_to = add_days(reference_date, -1)
+    date_from = add_days(date_to, -(days - 1))
+
+    return date_from, date_to
+
+
 def generate_workdays_scheduled_job():
 	hr_addon_settings = frappe.get_doc("HR Addon Settings")
 	if hr_addon_settings.enabled == 0:
@@ -1486,8 +1509,7 @@ def generate_workdays_for_past_7_days_now():
 	frappe.db.commit()
 	
 	try:
-		today = frappe.utils.datetime.datetime.now()
-		a_week_ago = today - frappe.utils.datetime.timedelta(days=7)
+		date_from, date_to = get_completed_workday_date_range()
 		
 		# Uncomment below line to test error handling in Workday Generation Log
 		# raise Exception("Test error: Simulating critical failure in workday generation")
@@ -1507,7 +1529,7 @@ def generate_workdays_for_past_7_days_now():
 				# Uncomment below line to test per-employee error handling
 				# if employee_name == "HR-EMP-00001": raise Exception("Test error: Simulating employee-specific failure")
 				
-				unmarked_days = get_unmarked_range(employee_name, a_week_ago.strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d"))
+				unmarked_days = get_unmarked_range(employee_name, date_from.strftime("%Y-%m-%d"), date_to.strftime("%Y-%m-%d"),)
 				
 				if not unmarked_days: 
 					continue  # No unmarked days, skip to next employee 
