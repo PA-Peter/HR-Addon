@@ -11,6 +11,7 @@ from hr_addon.hr_addon.doctype.workday.workday import (
     date_is_in_holiday_list,
     evaluate_daily_minutes,
     evaluate_minimum_break,
+    get_completed_workday_date_range,
     get_workday,
     parse_employee_checkins,
 )
@@ -147,6 +148,38 @@ class TestEmployeeCheckinParser(UnitTestCase):
 
         self.assertTrue(result["is_valid"])
         self.assertEqual(result["raw_work_minutes"], 59)
+
+
+class TestCompletedWorkdayDateRange(UnitTestCase):
+    def test_returns_exactly_last_seven_completed_days(self):
+        date_from, date_to = get_completed_workday_date_range(
+            "2026-09-28 08:34:00",
+        )
+
+        self.assertEqual(str(date_from), "2026-09-21")
+        self.assertEqual(str(date_to), "2026-09-27")
+        self.assertEqual((date_to - date_from).days, 6)
+
+    def test_current_day_is_never_included(self):
+        _, date_to = get_completed_workday_date_range(
+            "2026-09-28 23:59:59",
+        )
+
+        self.assertEqual(str(date_to), "2026-09-27")
+
+    def test_default_uses_frappe_system_datetime(self):
+        with patch(
+            "hr_addon.hr_addon.doctype.workday.workday."
+            "frappe.utils.now_datetime",
+            return_value="2026-09-28 00:01:00",
+        ):
+            date_from, date_to = (
+                get_completed_workday_date_range()
+            )
+
+        self.assertEqual(str(date_from), "2026-09-21")
+        self.assertEqual(str(date_to), "2026-09-27")
+
 
 class TestWorkdayFailClosedDelta(UnitTestCase):
     def _validate_from_parsed_checkins(
