@@ -1,0 +1,103 @@
+{
+ "actions": [],
+ "creation": "2026-09-29 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "ledger_entry",
+  "effective_date",
+  "effective_time",
+  "entry_type",
+  "delta_minutes",
+  "source_section",
+  "voucher_type",
+  "voucher_no",
+  "reverses_entry",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "ledger_entry",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ledger Entry",
+   "options": "Time Account Ledger Entry",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "effective_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Effective Date",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "effective_time",
+   "fieldtype": "Time",
+   "label": "Effective Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "entry_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Entry Type",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "delta_minutes",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Delta Minutes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_section",
+   "fieldtype": "Section Break",
+   "label": "Source"
+  },
+  {
+   "fieldname": "voucher_type",
+   "fieldtype": "Link",
+   "label": "Voucher Type",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "voucher_no",
+   "fieldtype": "Dynamic Link",
+   "label": "Voucher No",
+   "options": "voucher_type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reverses_entry",
+   "fieldtype": "Link",
+   "label": "Reverses Entry",
+   "options": "Time Account Ledger Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR Addon",
+ "name": "Monthly Time Report Ledger Entry",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "idx",
+ "sort_order": "ASC"
+}
