@@ -1,0 +1,266 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:EDOC-{YYYY}-{#####}",
+ "creation": "2026-09-29 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee_section",
+  "employee",
+  "employee_name",
+  "document_column",
+  "document_title",
+  "document_type",
+  "source",
+  "document_date",
+  "period_section",
+  "period_from",
+  "period_to",
+  "file_section",
+  "document_file",
+  "description",
+  "mailbox_section",
+  "read_status",
+  "folder",
+  "provided_at",
+  "mailbox_column",
+  "seen_at",
+  "archived_at",
+  "revision_section",
+  "revision",
+  "previous_revision",
+  "revision_column",
+  "is_current_revision",
+  "integration_section",
+  "external_reference",
+  "last_emailed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee_section",
+   "fieldtype": "Section Break",
+   "label": "Employee"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "document_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "document_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Document Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Document Type",
+   "options": "Monthly Time Report\nPayroll Statement\nAnnual Statement\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Source",
+   "options": "Monthly Time Report\nDATEV\nManual",
+   "reqd": 1
+  },
+  {
+   "fieldname": "document_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Document Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "period_section",
+   "fieldtype": "Section Break",
+   "label": "Period"
+  },
+  {
+   "fieldname": "period_from",
+   "fieldtype": "Date",
+   "label": "Period From"
+  },
+  {
+   "fieldname": "period_to",
+   "fieldtype": "Date",
+   "label": "Period To"
+  },
+  {
+   "fieldname": "file_section",
+   "fieldtype": "Section Break",
+   "label": "File"
+  },
+  {
+   "fieldname": "document_file",
+   "fieldtype": "Attach",
+   "label": "Document File",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "mailbox_section",
+   "fieldtype": "Section Break",
+   "label": "Mailbox"
+  },
+  {
+   "default": "New",
+   "fieldname": "read_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Read Status",
+   "options": "New\nSeen",
+   "read_only": 1
+  },
+  {
+   "default": "Inbox",
+   "fieldname": "folder",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Folder",
+   "options": "Inbox\nArchive",
+   "read_only": 1
+  },
+  {
+   "fieldname": "provided_at",
+   "fieldtype": "Datetime",
+   "label": "Provided At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mailbox_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "seen_at",
+   "fieldtype": "Datetime",
+   "label": "Seen At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "archived_at",
+   "fieldtype": "Datetime",
+   "label": "Archived At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "revision_section",
+   "fieldtype": "Section Break",
+   "label": "Revision"
+  },
+  {
+   "default": "1",
+   "fieldname": "revision",
+   "fieldtype": "Int",
+   "label": "Revision",
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous_revision",
+   "fieldtype": "Link",
+   "label": "Previous Revision",
+   "options": "Employee Document"
+  },
+  {
+   "fieldname": "revision_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_current_revision",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Current Revision",
+   "read_only": 1
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "description": "Optional identifier from the source system, e.g. DATEV import ID.",
+   "fieldname": "external_reference",
+   "fieldtype": "Data",
+   "label": "External Reference"
+  },
+  {
+   "fieldname": "last_emailed_at",
+   "fieldtype": "Datetime",
+   "label": "Last Emailed At",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR Addon",
+ "name": "Employee Document",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "sort_field": "provided_at",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "document_title",
+ "track_changes": 1
+}
