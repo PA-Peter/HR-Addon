@@ -31,7 +31,13 @@ permission_query_conditions = {
 		"checkin_correction_request."
 		"checkin_correction_request_permissions."
 		"get_permission_query_conditions"
-	)
+	),
+	"Employee Document": (
+		"hr_addon.hr_addon.doctype."
+		"employee_document."
+		"employee_document_permissions."
+		"get_permission_query_conditions"
+	),
 }
 
 
@@ -41,7 +47,13 @@ has_permission = {
 		"checkin_correction_request."
 		"checkin_correction_request_permissions."
 		"has_permission"
-	)
+	),
+	"Employee Document": (
+		"hr_addon.hr_addon.doctype."
+		"employee_document."
+		"employee_document_permissions."
+		"has_permission"
+	),
 }
 
 
@@ -63,6 +75,7 @@ doc_events = {
 
 scheduler_events = {
 	"daily": [
-		"hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.send_work_anniversary_notification"
+		"hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.send_work_anniversary_notification",
+		"hr_addon.hr_addon.doctype.employee_document.employee_document.auto_archive_old_employee_documents",
 	]
 }
