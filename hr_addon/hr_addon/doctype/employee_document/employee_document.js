@@ -1,6 +1,9 @@
 // Copyright (c) 2026, RieckMedia and contributors
 // For license information, please see license.txt
 
+const EMPLOYEE_DOCUMENT_METHOD =
+	"hr_addon.hr_addon.doctype.employee_document.";
+
 frappe.ui.form.on("Employee Document", {
 	refresh(frm) {
 		if (frm.is_new()) {
@@ -20,9 +23,8 @@ frappe.ui.form.on("Employee Document", {
 		) {
 			frappe.call({
 				method:
-					"hr_addon.hr_addon.doctype."
-					+ "employee_document.employee_document."
-					+ "mark_seen",
+					EMPLOYEE_DOCUMENT_METHOD
+					+ "employee_document.mark_seen",
 				args: {
 					name: frm.doc.name,
 				},
@@ -48,6 +50,60 @@ frappe.ui.form.on("Employee Document", {
 			});
 		}
 
+		if (frm.doc.document_file) {
+			frm.add_custom_button(
+				__(
+					"Send to Personal Email"
+				),
+				() => {
+					frappe.confirm(
+						__(
+							"Send this document "
+							+ "to the personal email "
+							+ "address stored for "
+							+ "this employee?"
+						),
+						() => {
+							frappe.call({
+								method:
+									EMPLOYEE_DOCUMENT_METHOD
+									+ "employee_document_mail."
+									+ "send_to_personal_email",
+								args: {
+									name:
+										frm.doc.name,
+								},
+								freeze: true,
+								freeze_message:
+									__(
+										"Sending document..."
+									),
+							}).then(
+								(response) => {
+									if (
+										response.message
+										&& response.message.sent
+									) {
+										frappe.show_alert({
+											message:
+												__(
+													"Document sent "
+													+ "successfully."
+												),
+											indicator:
+												"green",
+										});
+
+										frm.reload_doc();
+									}
+								}
+							);
+						}
+					);
+				}
+			);
+		}
+
 		if (
 			frm.doc.folder === "Inbox"
 		) {
@@ -62,8 +118,7 @@ frappe.ui.form.on("Employee Document", {
 						() => {
 							frappe.call({
 								method:
-									"hr_addon.hr_addon."
-									+ "doctype.employee_document."
+									EMPLOYEE_DOCUMENT_METHOD
 									+ "employee_document."
 									+ "archive_document",
 								args: {
