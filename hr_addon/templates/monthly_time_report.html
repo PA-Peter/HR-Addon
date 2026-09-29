@@ -1,0 +1,390 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 8mm;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8.5pt;
+            line-height: 1.25;
+            color: #111;
+        }
+
+        h1 {
+            font-size: 17pt;
+            margin: 0 0 3mm 0;
+        }
+
+        h2 {
+            font-size: 11pt;
+            margin: 5mm 0 2mm 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 0.2mm solid #aaa;
+            padding: 1.2mm 1.4mm;
+            vertical-align: top;
+        }
+
+        th {
+            font-weight: 700;
+            background: #eee;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        .meta td {
+            border: 0;
+            padding: 0.6mm 2mm 0.6mm 0;
+        }
+
+        .meta-label {
+            width: 24mm;
+            font-weight: 700;
+        }
+
+        .daily {
+            table-layout: fixed;
+        }
+
+        .daily .date {
+            width: 23mm;
+            white-space: nowrap;
+        }
+
+        .daily .checkins {
+            width: 58mm;
+        }
+
+        .daily .minutes {
+            width: 18mm;
+            white-space: nowrap;
+            text-align: right;
+        }
+
+        .daily .breaks {
+            width: 35mm;
+        }
+
+        .daily .absence {
+            width: 48mm;
+        }
+
+        .summary td {
+            width: 33.333%;
+        }
+
+        .summary-value {
+            display: block;
+            margin-top: 1mm;
+            font-size: 13pt;
+            font-weight: 700;
+        }
+
+        .movements {
+            table-layout: fixed;
+        }
+
+        .movements .date {
+            width: 28mm;
+        }
+
+        .movements .type {
+            width: 45mm;
+        }
+
+        .movements .delta {
+            width: 24mm;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .note {
+            margin-top: 4mm;
+            font-size: 7.5pt;
+        }
+
+        .footer {
+            margin-top: 5mm;
+            padding-top: 2mm;
+            border-top: 0.2mm solid #bbb;
+            font-size: 7pt;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>
+        Arbeitszeitnachweis {{ period_label }}
+    </h1>
+
+    <table class="meta">
+        <tr>
+            <td class="meta-label">
+                Mitarbeiter
+            </td>
+
+            <td>
+                {{ employee_name | e }}
+            </td>
+
+            <td class="meta-label">
+                Zeitraum
+            </td>
+
+            <td>
+                {{ period_from }} – {{ period_to }}
+            </td>
+        </tr>
+
+        <tr>
+            <td class="meta-label">
+                Revision
+            </td>
+
+            <td>
+                {{ revision }}
+            </td>
+
+            <td class="meta-label">
+                Erzeugt
+            </td>
+
+            <td>
+                {{ generated_at }}
+            </td>
+        </tr>
+    </table>
+
+
+    <h2>Tagesübersicht</h2>
+
+    <table class="daily">
+        <thead>
+            <tr>
+                <th class="date">
+                    Datum
+                </th>
+
+                <th class="checkins">
+                    Buchungen
+                </th>
+
+                <th class="minutes">
+                    Soll
+                </th>
+
+                <th class="minutes">
+                    Arbeit
+                </th>
+
+                <th class="breaks">
+                    Pause
+                </th>
+
+                <th class="absence">
+                    Abwesenheit
+                </th>
+
+                <th class="minutes">
+                    Anrechenbar
+                </th>
+
+                <th class="minutes">
+                    Saldo
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for row in days %}
+            <tr>
+                <td class="date">
+                    {{ row.weekday }} {{ row.date }}
+                </td>
+
+                <td class="checkins">
+                    {{ row.checkins | e }}
+                </td>
+
+                <td class="minutes">
+                    {{ row.target }}
+                </td>
+
+                <td class="minutes">
+                    {{ row.raw_work }}
+                </td>
+
+                <td class="breaks">
+                    {{ row.breaks | e }}
+                </td>
+
+                <td class="absence">
+                    {{ row.absence | e }}
+                </td>
+
+                <td class="minutes">
+                    {{ row.accountable }}
+                </td>
+
+                <td class="minutes">
+                    {{ row.delta }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+        <tfoot>
+            <tr>
+                <th colspan="2">
+                    Monatssumme
+                </th>
+
+                <th class="minutes">
+                    {{ total_target }}
+                </th>
+
+                <th class="minutes">
+                    {{ total_raw_work }}
+                </th>
+
+                <th>
+                </th>
+
+                <th>
+                    Gutschrift
+                    {{ total_absence_credit }}
+                </th>
+
+                <th class="minutes">
+                    {{ total_accountable }}
+                </th>
+
+                <th class="minutes">
+                    {{ total_daily_delta }}
+                </th>
+            </tr>
+        </tfoot>
+    </table>
+
+
+    <h2>Zeitkonto</h2>
+
+    <table class="summary">
+        <tr>
+            <td>
+                Saldo Monatsanfang
+
+                <span class="summary-value">
+                    {{ opening_balance }}
+                </span>
+            </td>
+
+            <td>
+                Bewegungen im Monat
+
+                <span class="summary-value">
+                    {{ ledger_movement }}
+                </span>
+            </td>
+
+            <td>
+                Saldo Monatsende
+
+                <span class="summary-value">
+                    {{ closing_balance }}
+                </span>
+            </td>
+        </tr>
+    </table>
+
+
+    {% if ledger_rows %}
+
+    <h2>
+        Korrekturen / sonstige Zeitkontobewegungen
+    </h2>
+
+    <table class="movements">
+        <thead>
+            <tr>
+                <th class="date">
+                    Datum
+                </th>
+
+                <th class="type">
+                    Art
+                </th>
+
+                <th class="delta">
+                    Änderung
+                </th>
+
+                <th>
+                    Bemerkung
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for row in ledger_rows %}
+            <tr>
+                <td class="date">
+                    {{ row.date }}
+                </td>
+
+                <td class="type">
+                    {{ row.entry_type | e }}
+                </td>
+
+                <td class="delta">
+                    {{ row.delta }}
+                </td>
+
+                <td>
+                    {{ row.remarks | e }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% endif %}
+
+
+    <div class="note">
+        Zeitangaben im Format HH:MM.
+        „Arbeit“ entspricht der im Workday gespeicherten
+        Netto-Arbeitszeit vor einer gegebenenfalls
+        zusätzlichen automatischen Pausenabzugszeit.
+        „Anrechenbar“ und „Saldo“ werden aus dem
+        gespeicherten Workday-Snapshot übernommen;
+        der Bericht führt keine eigene Zeitberechnung durch.
+    </div>
+
+
+    <div class="footer">
+        Arbeitszeitnachweis · Revision {{ revision }}
+    </div>
+
+</body>
+</html>
