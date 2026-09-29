@@ -29,6 +29,18 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_service i
 )
 
 
+IGNORE_TEST_RECORD_DEPENDENCIES = [
+    "Employee",
+    "User",
+    "Employee Document",
+    "Workday",
+    "Leave Application",
+    "Leave Type",
+    "Time Account Ledger Entry",
+    "DocType",
+]
+
+
 SERVICE_MODULE = (
     "hr_addon.hr_addon.doctype."
     "monthly_time_report."
