@@ -1,0 +1,309 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:MTR-{YYYY}-{#####}",
+ "creation": "2026-09-29 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "employee",
+  "employee_name",
+  "identity_column",
+  "report_title",
+  "report_year",
+  "report_month",
+  "period_section",
+  "period_from",
+  "period_to",
+  "balance_section",
+  "opening_balance_minutes",
+  "ledger_movement_minutes",
+  "balance_column",
+  "closing_balance_minutes",
+  "completeness_section",
+  "is_complete",
+  "blocking_issue_count",
+  "revision_section",
+  "revision",
+  "previous_revision",
+  "revision_column",
+  "is_current_revision",
+  "status",
+  "generation_section",
+  "generated_at",
+  "generated_by",
+  "days_section",
+  "days",
+  "ledger_section",
+  "ledger_entries",
+  "publication_section",
+  "employee_document",
+  "pdf_file"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Report"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Employee",
+   "options": "Employee",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Employee Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "identity_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "report_title",
+   "fieldtype": "Data",
+   "label": "Report Title",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "report_year",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Year",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "report_month",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Month",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "period_section",
+   "fieldtype": "Section Break",
+   "label": "Period"
+  },
+  {
+   "fieldname": "period_from",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Period From",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "period_to",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Period To",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "balance_section",
+   "fieldtype": "Section Break",
+   "label": "Time Account"
+  },
+  {
+   "default": "0",
+   "description": "Time-account balance before Period From, in whole minutes.",
+   "fieldname": "opening_balance_minutes",
+   "fieldtype": "Int",
+   "label": "Opening Balance Minutes",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Sum of all ledger movements inside the report period.",
+   "fieldname": "ledger_movement_minutes",
+   "fieldtype": "Int",
+   "label": "Ledger Movement Minutes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "balance_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Opening Balance Minutes plus all ledger movements in the report period.",
+   "fieldname": "closing_balance_minutes",
+   "fieldtype": "Int",
+   "label": "Closing Balance Minutes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completeness_section",
+   "fieldtype": "Section Break",
+   "label": "Completeness"
+  },
+  {
+   "default": "0",
+   "description": "Set only when the report period contains no blocking source-data issues.",
+   "fieldname": "is_complete",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Complete",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Number of Missing Workday, Missing Checkin, or missing working-hours-model issues.",
+   "fieldname": "blocking_issue_count",
+   "fieldtype": "Int",
+   "label": "Blocking Issue Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "revision_section",
+   "fieldtype": "Section Break",
+   "label": "Revision"
+  },
+  {
+   "default": "1",
+   "fieldname": "revision",
+   "fieldtype": "Int",
+   "label": "Revision",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "previous_revision",
+   "fieldtype": "Link",
+   "label": "Previous Revision",
+   "options": "Monthly Time Report",
+   "read_only": 1
+  },
+  {
+   "fieldname": "revision_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_current_revision",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Current Revision",
+   "read_only": 1
+  },
+  {
+   "default": "Generated",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Generated\nSuperseded",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "generation_section",
+   "fieldtype": "Section Break",
+   "label": "Generation"
+  },
+  {
+   "fieldname": "generated_at",
+   "fieldtype": "Datetime",
+   "label": "Generated At",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "generated_by",
+   "fieldtype": "Link",
+   "label": "Generated By",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "days_section",
+   "fieldtype": "Section Break",
+   "label": "Daily Snapshot"
+  },
+  {
+   "fieldname": "days",
+   "fieldtype": "Table",
+   "label": "Days",
+   "options": "Monthly Time Report Day",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ledger_section",
+   "fieldtype": "Section Break",
+   "label": "Time Account Ledger"
+  },
+  {
+   "fieldname": "ledger_entries",
+   "fieldtype": "Table",
+   "label": "Ledger Entries",
+   "options": "Monthly Time Report Ledger Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "publication_section",
+   "fieldtype": "Section Break",
+   "label": "Employee Publication"
+  },
+  {
+   "fieldname": "employee_document",
+   "fieldtype": "Link",
+   "label": "Employee Document",
+   "options": "Employee Document",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pdf_file",
+   "fieldtype": "Attach",
+   "label": "PDF File",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-29 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR Addon",
+ "name": "Monthly Time Report",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  },
+  {
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager"
+  }
+ ],
+ "sort_field": "generated_at",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "report_title",
+ "track_changes": 1
+}
