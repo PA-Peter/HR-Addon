@@ -324,13 +324,21 @@ class TestMonthlyTimeReportPublication(
     def test_app_template_renders(
         self,
     ):
-        html = frappe.render_template(
-            PDF_TEMPLATE,
-            build_pdf_context(
-                self._report()
-            ),
-        )
-
+        with patch(
+            f"{MODULE}._get_company_branding",
+            return_value={
+                "company_name": "RieckMedia",
+                "company_logo_data_uri": (
+                    "data:image/jpeg;base64,TEST"
+                ),
+            },
+        ):
+            html = frappe.render_template(
+                PDF_TEMPLATE,
+                build_pdf_context(
+                    self._report()
+                ),
+            )
         self.assertIn(
             "Arbeitszeitnachweis 08/2026",
             html,
@@ -343,6 +351,16 @@ class TestMonthlyTimeReportPublication(
 
         self.assertIn(
             "Tagesübersicht",
+            html,
+        )
+
+        self.assertIn(
+            "RieckMedia",
+            html,
+        )
+    
+        self.assertIn(
+            "data:image/jpeg;base64,TEST",
             html,
         )
 
@@ -367,6 +385,13 @@ class TestMonthlyTimeReportPublication(
                 f"{MODULE}.get_pdf",
                 return_value=b"PDF",
             ) as pdf,
+            patch(
+                f"{MODULE}._get_company_branding",
+                return_value={
+                    "company_name": "RieckMedia",
+                    "company_logo_data_uri": "",
+                },
+            ),
         ):
             result = (
                 render_monthly_time_report_pdf(
@@ -849,6 +874,158 @@ class TestMonthlyTimeReportPublication(
             ignore_permissions=True
         )
 
+    def test_company_branding_uses_employee_company_letter_head(
+        self,
+    ):
+        company_doc = frappe._dict({
+            "name": "RieckMedia",
+            "company_name": "RieckMedia",
+            "default_letter_head": "RieckMedia",
+        })
+
+        letter_head = frappe._dict({
+            "name": "RieckMedia",
+            "disabled": 0,
+            "source": "Image",
+            "image": "/files/RieckMedia_Logo.jpg",
+        })
+
+        def get_cached_doc(
+            doctype,
+            name,
+        ):
+            if doctype == "Company":
+                return company_doc
+
+            if doctype == "Letter Head":
+                return letter_head
+
+            raise AssertionError(
+                f"Unexpected DocType: {doctype}"
+            )
+
+        with (
+            patch(
+                f"{MODULE}.frappe.db.get_value",
+                return_value="RieckMedia",
+            ) as get_company,
+            patch(
+                f"{MODULE}.frappe.get_cached_doc",
+                side_effect=get_cached_doc,
+            ),
+            patch(
+                f"{MODULE}._image_file_data_uri",
+                return_value=(
+                    "data:image/jpeg;base64,TEST"
+                ),
+            ) as image,
+        ):
+            branding = (
+                _get_company_branding(
+                    "HR-EMP-00001"
+                )
+            )
+
+        self.assertEqual(
+            branding[
+                "company_name"
+            ],
+            "RieckMedia",
+        )
+
+        self.assertEqual(
+            branding[
+                "company_logo_data_uri"
+            ],
+            "data:image/jpeg;base64,TEST",
+        )
+
+        get_company.assert_called_once_with(
+            "Employee",
+            "HR-EMP-00001",
+            "company",
+        )
+
+        image.assert_called_once_with(
+            "/files/RieckMedia_Logo.jpg"
+        )
+
+    def test_company_branding_without_letter_head_uses_company_name(
+        self,
+    ):
+        company_doc = frappe._dict({
+            "name": "Example Company",
+            "company_name": "Example Company GmbH",
+            "default_letter_head": None,
+        })
+
+        with (
+            patch(
+                f"{MODULE}.frappe.db.get_value",
+                return_value="Example Company",
+            ),
+            patch(
+                f"{MODULE}.frappe.get_cached_doc",
+                return_value=company_doc,
+            ),
+        ):
+            branding = (
+                _get_company_branding(
+                    "HR-EMP-00001"
+                )
+            )
+
+        self.assertEqual(
+            branding[
+                "company_name"
+            ],
+            "Example Company GmbH",
+        )
+
+        self.assertEqual(
+            branding[
+                "company_logo_data_uri"
+            ],
+            "",
+        )
+
+    def test_letter_head_image_is_embedded_as_data_uri(
+        self,
+    ):
+        file_content = (
+            b"\xff\xd8\xff"
+            b"TEST"
+        )
+
+        file_doc = MagicMock()
+        file_doc.file_name = (
+            "RieckMedia_Logo.jpg"
+        )
+        file_doc.get_content.return_value = (
+            file_content
+        )
+
+        with (
+            patch(
+                f"{MODULE}.frappe.db.get_value",
+                return_value="FILE-0001",
+            ),
+            patch(
+                f"{MODULE}.frappe.get_doc",
+                return_value=file_doc,
+            ),
+        ):
+            data_uri = (
+                _image_file_data_uri(
+                    "/files/RieckMedia_Logo.jpg"
+                )
+            )
+
+        self.assertTrue(
+            data_uri.startswith(
+                "data:image/jpeg;base64,"
+            )
+        )
     def test_regenerate_publishes_new_revision_and_supersedes_previous(
         self,
     ):
