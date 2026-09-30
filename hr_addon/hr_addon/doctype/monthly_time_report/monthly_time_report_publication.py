@@ -1,6 +1,8 @@
 # Copyright (c) 2026, RieckMedia and contributors
 # For license information, please see license.txt
 
+import base64
+import mimetypes
 import re
 
 import frappe
@@ -278,9 +280,140 @@ def _format_ledger_row(
     }
 
 
+def _image_file_data_uri(
+    file_url,
+):
+    if not file_url:
+        return ""
+
+    file_name = frappe.db.get_value(
+        "File",
+        {
+            "file_url": file_url,
+        },
+        "name",
+    )
+
+    if not file_name:
+        return ""
+
+    try:
+        file_doc = frappe.get_doc(
+            "File",
+            file_name,
+        )
+
+        content = file_doc.get_content()
+
+    except (
+        frappe.DoesNotExistError,
+        FileNotFoundError,
+        OSError,
+    ):
+        return ""
+
+    if isinstance(
+        content,
+        str,
+    ):
+        content = content.encode(
+            "utf-8"
+        )
+
+    mime_type = (
+        mimetypes.guess_type(
+            file_doc.file_name
+            or file_url
+        )[0]
+    )
+
+    if (
+        not mime_type
+        or not mime_type.startswith(
+            "image/"
+        )
+    ):
+        return ""
+
+    encoded = (
+        base64.b64encode(
+            content
+        ).decode(
+            "ascii"
+        )
+    )
+
+    return (
+        f"data:{mime_type};base64,"
+        f"{encoded}"
+    )
+
+
+def _get_company_branding(
+    employee,
+):
+    company = frappe.db.get_value(
+        "Employee",
+        employee,
+        "company",
+    )
+
+    if not company:
+        return {
+            "company_name": "",
+            "company_logo_data_uri": "",
+        }
+
+    company_doc = frappe.get_cached_doc(
+        "Company",
+        company,
+    )
+
+    company_name = (
+        company_doc.company_name
+        or company_doc.name
+        or company
+    )
+
+    logo_data_uri = ""
+
+    letter_head_name = (
+        company_doc.default_letter_head
+    )
+
+    if letter_head_name:
+        letter_head = frappe.get_cached_doc(
+            "Letter Head",
+            letter_head_name,
+        )
+
+        if (
+            not letter_head.disabled
+            and letter_head.source == "Image"
+            and letter_head.image
+        ):
+            logo_data_uri = (
+                _image_file_data_uri(
+                    letter_head.image
+                )
+            )
+
+    return {
+        "company_name": company_name,
+        "company_logo_data_uri": (
+            logo_data_uri
+        ),
+    }
+
+
 def build_pdf_context(
     report,
 ):
+    company_branding = (
+        _get_company_branding(
+            report.employee
+        )
+    )
     day_rows = [
         _format_day_row(
             row
@@ -357,6 +490,20 @@ def build_pdf_context(
     )
 
     return {
+        "company_name": (
+            company_branding[
+                "company_name"
+            ]
+        ),
+        "company_logo_data_uri": (
+            company_branding[
+                "company_logo_data_uri"
+            ]
+        ),
+        "employee_name": (
+            report.employee_name
+            or report.employee
+        ),
         "employee_name": (
             report.employee_name
             or report.employee
