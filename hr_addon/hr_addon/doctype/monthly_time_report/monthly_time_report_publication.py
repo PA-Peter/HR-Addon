@@ -504,10 +504,6 @@ def build_pdf_context(
             report.employee_name
             or report.employee
         ),
-        "employee_name": (
-            report.employee_name
-            or report.employee
-        ),
         "period_label": (
             f"{report_month:02d}/"
             f"{report_year:04d}"
