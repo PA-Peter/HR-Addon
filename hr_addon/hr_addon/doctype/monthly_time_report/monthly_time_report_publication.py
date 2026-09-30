@@ -451,7 +451,6 @@ def render_monthly_time_report_pdf(
     return get_pdf(
         html,
         options=PDF_OPTIONS,
-        smart_shrinking=True,
     )
 
 
