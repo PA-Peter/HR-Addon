@@ -366,10 +366,9 @@ class TestMonthlyTimeReportPublication(
             PDF_OPTIONS,
         )
 
-        self.assertTrue(
-            pdf.call_args.kwargs[
-                "smart_shrinking"
-            ]
+        self.assertNotIn(
+            "smart_shrinking",
+            pdf.call_args.kwargs,
         )
 
     def test_incomplete_report_cannot_be_published(
