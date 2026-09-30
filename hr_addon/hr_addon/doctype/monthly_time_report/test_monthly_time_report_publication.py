@@ -21,6 +21,8 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_publicati
     _assert_revision_source,
     _create_revision_snapshot,
     _employee_document_values,
+    _get_company_branding,
+    _image_file_data_uri,
     _save_private_pdf,
     build_pdf_context,
     create_and_publish_monthly_time_report,
@@ -239,12 +241,21 @@ class TestMonthlyTimeReportPublication(
     def test_pdf_context_uses_snapshot_values(
         self,
     ):
-        context = (
-            build_pdf_context(
-                self._report()
+        with patch(
+            f"{MODULE}._get_company_branding",
+            return_value={
+                "company_name": "RieckMedia",
+                "company_logo_data_uri": (
+                    "data:image/jpeg;base64,TEST"
+                ),
+            },
+        ):
+            context = (
+                build_pdf_context(
+                    self._report()
+                )
             )
-        )
-
+            
         self.assertEqual(
             context[
                 "total_target"
@@ -294,6 +305,20 @@ class TestMonthlyTimeReportPublication(
                 ]
             ),
             2,
+        )
+
+        self.assertEqual(
+            context[
+                "company_name"
+            ],
+            "RieckMedia",
+        )
+
+        self.assertEqual(
+            context[
+                "company_logo_data_uri"
+            ],
+            "data:image/jpeg;base64,TEST",
         )
 
     def test_app_template_renders(
