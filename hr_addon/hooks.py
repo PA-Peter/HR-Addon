@@ -85,5 +85,8 @@ scheduler_events = {
 		"15 3 * * *": [
 			"hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_scheduler.reconcile_previous_month_reports",
 		],
+		"30 3 * * *": [
+			"hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_scheduler.finalize_due_month_reports",
+		],
 	},
 }

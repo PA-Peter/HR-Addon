@@ -14,10 +14,12 @@ SERVICE_FLAG = "monthly_time_report_service"
 
 STATUS_GENERATED = "Generated"
 STATUS_SUPERSEDED = "Superseded"
+STATUS_FINAL = "Final"
 
 VALID_STATUSES = {
     STATUS_GENERATED,
     STATUS_SUPERSEDED,
+    STATUS_FINAL,
 }
 
 
@@ -32,6 +34,10 @@ class MonthlyTimeReport(Document):
         )
 
         _validate_snapshot_consistency(
+            self
+        )
+
+        _validate_finalization_state(
             self
         )
 
@@ -135,6 +141,80 @@ def _validate_report_identity(doc):
             )
         )
 
+
+def _validate_finalization_state(
+    doc,
+):
+    if (
+        doc.status
+        == STATUS_FINAL
+    ):
+        if not cint(
+            doc.is_current_revision
+        ):
+            frappe.throw(
+                _(
+                    "Only the current Monthly "
+                    "Time Report revision may "
+                    "be final."
+                )
+            )
+
+        if (
+            not cint(
+                doc.is_complete
+            )
+            or cint(
+                doc.blocking_issue_count
+            )
+        ):
+            frappe.throw(
+                _(
+                    "An incomplete Monthly Time "
+                    "Report cannot be final."
+                )
+            )
+
+        if (
+            not doc.employee_document
+            or not doc.pdf_file
+        ):
+            frappe.throw(
+                _(
+                    "A final Monthly Time Report "
+                    "must already be published."
+                )
+            )
+
+        if (
+            not doc.finalized_at
+            or not doc.finalized_by
+        ):
+            frappe.throw(
+                _(
+                    "Finalized At and Finalized By "
+                    "are required for a final "
+                    "Monthly Time Report."
+                )
+            )
+
+        return
+
+    if (
+        doc.get(
+            "finalized_at"
+        )
+        or doc.get(
+            "finalized_by"
+        )
+    ):
+        frappe.throw(
+            _(
+                "Finalization metadata is only "
+                "allowed for a final Monthly "
+                "Time Report."
+            )
+        )
 
 def _validate_snapshot_consistency(
     doc,

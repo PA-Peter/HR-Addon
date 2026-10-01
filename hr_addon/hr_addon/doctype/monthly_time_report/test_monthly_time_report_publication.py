@@ -11,6 +11,7 @@ from frappe.utils import getdate
 
 from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report import (
     SERVICE_FLAG,
+    STATUS_FINAL,
     STATUS_GENERATED,
     STATUS_SUPERSEDED,
 )
@@ -27,6 +28,7 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_publicati
     _save_private_pdf,
     build_pdf_context,
     create_and_publish_monthly_time_report,
+    finalize_monthly_time_report,
     format_minutes,
     publish_monthly_time_report,
     regenerate_and_publish_monthly_time_report,
@@ -1184,3 +1186,157 @@ class TestMonthlyTimeReportPublication(
             ],
             2,
         )
+
+
+    def test_finalize_monthly_time_report_marks_report_final(
+        self,
+    ):
+        report = MagicMock()
+
+        report.name = (
+            "MTR-2026-00001"
+        )
+        report.status = (
+            STATUS_GENERATED
+        )
+        report.is_current_revision = 1
+        report.is_complete = 1
+        report.blocking_issue_count = 0
+        report.employee_document = (
+            "EDOC-1"
+        )
+        report.pdf_file = (
+            "/private/files/r1.pdf"
+        )
+        report.period_from = getdate(
+            "2026-09-01"
+        )
+        report.finalized_at = None
+        report.finalized_by = None
+        report.flags = {}
+
+        reference = datetime(
+            2026,
+            11,
+            1,
+            3,
+            30,
+            0,
+        )
+
+        with patch(
+            (
+                f"{MODULE}."
+                "frappe.get_doc"
+            ),
+            return_value=report,
+        ):
+            result = (
+                finalize_monthly_time_report(
+                    report.name,
+                    reference_datetime=(
+                        reference
+                    ),
+                )
+            )
+
+        self.assertEqual(
+            report.status,
+            STATUS_FINAL,
+        )
+
+        self.assertEqual(
+            report.finalized_at,
+            reference,
+        )
+
+        self.assertTrue(
+            report.finalized_by
+        )
+
+        self.assertTrue(
+            report.flags[
+                SERVICE_FLAG
+            ]
+        )
+
+        report.save.assert_called_once_with(
+            ignore_permissions=True
+        )
+
+        self.assertFalse(
+            result[
+                "already_finalized"
+            ]
+        )
+
+    def test_finalize_monthly_time_report_rejects_early_finalization(
+        self,
+    ):
+        report = MagicMock()
+
+        report.name = (
+            "MTR-2026-00001"
+        )
+        report.status = (
+            STATUS_GENERATED
+        )
+        report.is_current_revision = 1
+        report.is_complete = 1
+        report.blocking_issue_count = 0
+        report.employee_document = (
+            "EDOC-1"
+        )
+        report.pdf_file = (
+            "/private/files/r1.pdf"
+        )
+        report.period_from = getdate(
+            "2026-09-01"
+        )
+        report.flags = {}
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.get_doc"
+                ),
+                return_value=report,
+            ),
+            self.assertRaises(
+                frappe.ValidationError
+            ),
+        ):
+            finalize_monthly_time_report(
+                report.name,
+                reference_datetime=(
+                    datetime(
+                        2026,
+                        10,
+                        31,
+                        23,
+                        59,
+                        59,
+                    )
+                ),
+            )
+
+        report.save.assert_not_called()
+
+    def test_final_report_cannot_be_revision_source(
+        self,
+    ):
+        report = self._report(
+            status=STATUS_FINAL,
+            employee_document="EDOC-1",
+            pdf_file=(
+                "/private/files/r1.pdf"
+            ),
+        )
+
+        with self.assertRaises(
+            frappe.ValidationError
+        ):
+            _assert_revision_source(
+                report
+            )

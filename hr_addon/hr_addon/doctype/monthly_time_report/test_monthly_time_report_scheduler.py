@@ -11,7 +11,9 @@ from frappe.utils import getdate
 
 from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_scheduler import (
     _get_reportable_employees,
+    finalize_due_month_reports,
     generate_previous_month_reports,
+    get_finalization_period,
     get_previous_month_period,
     reconcile_previous_month_reports,
 )
@@ -1085,6 +1087,492 @@ class TestMonthlyTimeReportScheduler(
             )
 
         regenerate.assert_not_called()
+
+        self.assertEqual(
+            result[
+                "blocked"
+            ][0][
+                "blocking_issue_count"
+            ],
+            1,
+        )
+
+
+    def test_finalization_period_is_two_months_back(
+        self,
+    ):
+        (
+            year,
+            month,
+            period_from,
+            period_to,
+        ) = get_finalization_period(
+            datetime(
+                2026,
+                11,
+                1,
+                3,
+                30,
+                0,
+            )
+        )
+
+        self.assertEqual(
+            year,
+            2026,
+        )
+
+        self.assertEqual(
+            month,
+            9,
+        )
+
+        self.assertEqual(
+            period_from,
+            getdate(
+                "2026-09-01"
+            ),
+        )
+
+        self.assertEqual(
+            period_to,
+            getdate(
+                "2026-09-30"
+            ),
+        )
+
+    def test_finalizer_catches_up_missing_report_and_finalizes_it(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            11,
+            1,
+            3,
+            30,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        snapshot = {
+            "is_complete": 1,
+            "blocking_issue_count": 0,
+        }
+
+        publication = {
+            "report": "MTR-1",
+            "employee_document": "EDOC-1",
+        }
+
+        finalization = {
+            "report": "MTR-1",
+            "finalized_at": reference,
+            "finalized_by": "Administrator",
+        }
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=None,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                ),
+                return_value=snapshot,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "create_and_publish_monthly_time_report"
+                ),
+                return_value=publication,
+            ) as create,
+            patch(
+                (
+                    f"{MODULE}."
+                    "finalize_monthly_time_report"
+                ),
+                return_value=finalization,
+            ) as finalize,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+        ):
+            result = (
+                finalize_due_month_reports(
+                    reference
+                )
+            )
+
+        create.assert_called_once_with(
+            "EMP-A",
+            2026,
+            9,
+            reference_datetime=(
+                reference
+            ),
+        )
+
+        finalize.assert_called_once_with(
+            "MTR-1",
+            reference_datetime=(
+                reference
+            ),
+        )
+
+        self.assertEqual(
+            result[
+                "finalized"
+            ][0][
+                "report"
+            ],
+            "MTR-1",
+        )
+
+    def test_finalizer_reconciles_changed_source_before_finalizing(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            11,
+            1,
+            3,
+            30,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        current = frappe._dict(
+            {
+                "name": "MTR-1",
+                "status": "Generated",
+                "revision": 1,
+                "employee_document": "EDOC-1",
+                "pdf_file": (
+                    "/private/files/r1.pdf"
+                ),
+            }
+        )
+
+        snapshot = {
+            "is_complete": 1,
+            "blocking_issue_count": 0,
+        }
+
+        current_doc = frappe._dict(
+            {
+                "name": "MTR-1",
+            }
+        )
+
+        publication = {
+            "report": "MTR-2",
+            "employee_document": "EDOC-2",
+            "revision": 2,
+        }
+
+        finalization = {
+            "report": "MTR-2",
+            "finalized_at": reference,
+            "finalized_by": "Administrator",
+        }
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=current,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                ),
+                return_value=snapshot,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.get_doc"
+                ),
+                return_value=current_doc,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "monthly_time_report_source_fingerprint"
+                ),
+                side_effect=[
+                    "old",
+                    "new",
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "regenerate_and_publish_monthly_time_report"
+                ),
+                return_value=publication,
+            ) as regenerate,
+            patch(
+                (
+                    f"{MODULE}."
+                    "finalize_monthly_time_report"
+                ),
+                return_value=finalization,
+            ) as finalize,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+        ):
+            result = (
+                finalize_due_month_reports(
+                    reference
+                )
+            )
+
+        regenerate.assert_called_once_with(
+            "MTR-1",
+            reference_datetime=(
+                reference
+            ),
+        )
+
+        finalize.assert_called_once_with(
+            "MTR-2",
+            reference_datetime=(
+                reference
+            ),
+        )
+
+        self.assertEqual(
+            result[
+                "revised"
+            ][0][
+                "revision"
+            ],
+            2,
+        )
+
+    def test_finalizer_is_idempotent_for_already_final_report(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            11,
+            1,
+            3,
+            30,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        current = frappe._dict(
+            {
+                "name": "MTR-1",
+                "status": "Final",
+                "revision": 2,
+                "employee_document": "EDOC-2",
+                "pdf_file": (
+                    "/private/files/r2.pdf"
+                ),
+            }
+        )
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=current,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                )
+            ) as snapshot,
+            patch(
+                (
+                    f"{MODULE}."
+                    "finalize_monthly_time_report"
+                )
+            ) as finalize,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+        ):
+            result = (
+                finalize_due_month_reports(
+                    reference
+                )
+            )
+
+        snapshot.assert_not_called()
+        finalize.assert_not_called()
+
+        self.assertEqual(
+            result[
+                "already_final"
+            ][0][
+                "report"
+            ],
+            "MTR-1",
+        )
+
+    def test_finalizer_does_not_finalize_blocked_source(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            11,
+            1,
+            3,
+            30,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        current = frappe._dict(
+            {
+                "name": "MTR-1",
+                "status": "Generated",
+                "revision": 1,
+                "employee_document": "EDOC-1",
+                "pdf_file": (
+                    "/private/files/r1.pdf"
+                ),
+            }
+        )
+
+        snapshot = {
+            "is_complete": 0,
+            "blocking_issue_count": 1,
+        }
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=current,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                ),
+                return_value=snapshot,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "finalize_monthly_time_report"
+                )
+            ) as finalize,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+            patch(
+                f"{MODULE}.frappe.logger"
+            ),
+        ):
+            result = (
+                finalize_due_month_reports(
+                    reference
+                )
+            )
+
+        finalize.assert_not_called()
 
         self.assertEqual(
             result[

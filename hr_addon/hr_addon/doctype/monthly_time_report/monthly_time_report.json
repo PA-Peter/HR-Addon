@@ -31,6 +31,8 @@
   "revision_column",
   "is_current_revision",
   "status",
+  "finalized_at",
+  "finalized_by",
   "generation_section",
   "generated_at",
   "generated_by",
@@ -166,7 +168,7 @@
   },
   {
    "default": "0",
-   "description": "Number of Missing Workday, Missing Checkin, or missing working-hours-model issues.",
+   "description": "Number of Missing Workday or missing working-hours-model issues.",
    "fieldname": "blocking_issue_count",
    "fieldtype": "Int",
    "label": "Blocking Issue Count",
@@ -211,9 +213,22 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Generated\nSuperseded",
+   "options": "Generated\nSuperseded\nFinal",
    "read_only": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "finalized_at",
+   "fieldtype": "Datetime",
+   "label": "Finalized At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finalized_by",
+   "fieldtype": "Link",
+   "label": "Finalized By",
+   "options": "User",
+   "read_only": 1
   },
   {
    "fieldname": "generation_section",

@@ -12,7 +12,9 @@ from frappe.utils import getdate
 
 from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report import (
     SERVICE_FLAG,
+    STATUS_FINAL,
     MonthlyTimeReport,
+    _validate_finalization_state,
     _validate_snapshot_consistency,
 )
 from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_service import (
@@ -1020,3 +1022,77 @@ class TestMonthlyTimeReport(
                 changed_source
             ),
         )
+
+
+    def test_finalization_state_accepts_complete_published_current_report(
+        self,
+    ):
+        doc = frappe._dict(
+            {
+                "status": (
+                    STATUS_FINAL
+                ),
+                "is_current_revision": 1,
+                "is_complete": 1,
+                "blocking_issue_count": 0,
+                "employee_document": (
+                    "EDOC-1"
+                ),
+                "pdf_file": (
+                    "/private/files/r1.pdf"
+                ),
+                "finalized_at": (
+                    datetime(
+                        2026,
+                        11,
+                        1,
+                        3,
+                        30,
+                        0,
+                    )
+                ),
+                "finalized_by": (
+                    "Administrator"
+                ),
+            }
+        )
+
+        _validate_finalization_state(
+            doc
+        )
+
+    def test_finalization_state_rejects_unpublished_final_report(
+        self,
+    ):
+        doc = frappe._dict(
+            {
+                "status": (
+                    STATUS_FINAL
+                ),
+                "is_current_revision": 1,
+                "is_complete": 1,
+                "blocking_issue_count": 0,
+                "employee_document": None,
+                "pdf_file": None,
+                "finalized_at": (
+                    datetime(
+                        2026,
+                        11,
+                        1,
+                        3,
+                        30,
+                        0,
+                    )
+                ),
+                "finalized_by": (
+                    "Administrator"
+                ),
+            }
+        )
+
+        with self.assertRaises(
+            frappe.ValidationError
+        ):
+            _validate_finalization_state(
+                doc
+            )

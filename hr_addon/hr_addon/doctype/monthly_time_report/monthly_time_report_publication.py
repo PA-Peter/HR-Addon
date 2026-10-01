@@ -8,12 +8,19 @@ import re
 import frappe
 
 from frappe import _
-from frappe.utils import cint, getdate, get_datetime
+from frappe.utils import (
+    add_months,
+    cint,
+    getdate,
+    get_datetime,
+    now_datetime,
+)
 from frappe.utils.file_manager import save_file
 from frappe.utils.pdf import get_pdf
 
 from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report import (
     SERVICE_FLAG,
+    STATUS_FINAL,
     STATUS_GENERATED,
     STATUS_SUPERSEDED,
 )
@@ -894,6 +901,19 @@ def create_and_publish_monthly_time_report(
 def _assert_revision_source(
     report,
 ):
+    if (
+        report.status
+        == STATUS_FINAL
+    ):
+        frappe.throw(
+            _(
+                "Final Monthly Time Report "
+                "{0} cannot be revised."
+            ).format(
+                report.name
+            )
+        )
+
     _assert_publication_state(
         report
     )
@@ -964,6 +984,145 @@ def _create_revision_snapshot(
         ignore_permissions=True
     )
 
+
+def finalize_monthly_time_report(
+    name,
+    reference_datetime=None,
+):
+    report = frappe.get_doc(
+        "Monthly Time Report",
+        name,
+    )
+
+    if (
+        report.status
+        == STATUS_FINAL
+    ):
+        return {
+            "report": report.name,
+            "status": report.status,
+            "finalized_at": (
+                report.finalized_at
+            ),
+            "finalized_by": (
+                report.finalized_by
+            ),
+            "already_finalized": True,
+        }
+
+    _assert_publication_state(
+        report
+    )
+
+    if (
+        not report.employee_document
+        or not report.pdf_file
+    ):
+        frappe.throw(
+            _(
+                "Monthly Time Report {0} "
+                "must be published before "
+                "it can be finalized."
+            ).format(
+                report.name
+            )
+        )
+
+    finalized_at = (
+        get_datetime(
+            reference_datetime
+        )
+        if reference_datetime
+        else now_datetime()
+    )
+
+    due_date = getdate(
+        add_months(
+            getdate(
+                report.period_from
+            ),
+            2,
+        )
+    ).replace(
+        day=1
+    )
+
+    if (
+        getdate(
+            finalized_at
+        )
+        < due_date
+    ):
+        frappe.throw(
+            _(
+                "Monthly Time Report {0} "
+                "cannot be finalized before "
+                "{1}."
+            ).format(
+                report.name,
+                frappe.format(
+                    due_date,
+                    {
+                        "fieldtype": (
+                            "Date"
+                        )
+                    },
+                ),
+            )
+        )
+
+    finalized_by = (
+        getattr(
+            frappe.session,
+            "user",
+            None,
+        )
+        or "Administrator"
+    )
+
+    if (
+        finalized_by
+        == "Guest"
+    ):
+        finalized_by = (
+            "Administrator"
+        )
+
+    report.status = (
+        STATUS_FINAL
+    )
+
+    report.finalized_at = (
+        finalized_at
+    )
+
+    report.finalized_by = (
+        finalized_by
+    )
+
+    report.flags[
+        SERVICE_FLAG
+    ] = True
+
+    report.save(
+        ignore_permissions=True
+    )
+
+    return {
+        "report": (
+            report.name
+        ),
+        "status": (
+            report.status
+        ),
+        "finalized_at": (
+            report.finalized_at
+        ),
+        "finalized_by": (
+            report.finalized_by
+        ),
+        "already_finalized": False,
+    }
 
 def regenerate_and_publish_monthly_time_report(
     name,

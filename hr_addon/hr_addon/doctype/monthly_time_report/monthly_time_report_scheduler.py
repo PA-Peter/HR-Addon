@@ -10,8 +10,13 @@ from frappe.utils import (
     now_datetime,
 )
 
+from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report import (
+    STATUS_FINAL,
+    STATUS_GENERATED,
+)
 from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_publication import (
     create_and_publish_monthly_time_report,
+    finalize_monthly_time_report,
     publish_monthly_time_report,
     regenerate_and_publish_monthly_time_report,
 )
@@ -131,6 +136,10 @@ def _get_current_report(
             "blocking_issue_count",
             "employee_document",
             "pdf_file",
+            "status",
+            "revision",
+            "finalized_at",
+            "finalized_by",
         ],
         limit_page_length=2,
     )
@@ -813,6 +822,513 @@ def reconcile_previous_month_reports(
                 title=(
                     "Monthly Time Report "
                     "Reconciliation"
+                ),
+                message=(
+                    frappe.get_traceback()
+                ),
+            )
+
+    return result
+
+
+def get_finalization_period(
+    reference_datetime=None,
+):
+    """
+    Return the calendar month that becomes
+    final on the first day of the current
+    month.
+
+    Example:
+    2026-11-01 -> September 2026
+    """
+
+    reference_datetime = (
+        reference_datetime
+        or now_datetime()
+    )
+
+    reference_date = getdate(
+        reference_datetime
+    )
+
+    first_current = (
+        reference_date.replace(
+            day=1
+        )
+    )
+
+    previous_month_to = (
+        add_days(
+            first_current,
+            -1,
+        )
+    )
+
+    previous_month_from = (
+        previous_month_to.replace(
+            day=1
+        )
+    )
+
+    period_to = add_days(
+        previous_month_from,
+        -1,
+    )
+
+    period_from = (
+        period_to.replace(
+            day=1
+        )
+    )
+
+    return (
+        period_to.year,
+        period_to.month,
+        period_from,
+        period_to,
+    )
+
+
+def finalize_due_month_reports(
+    reference_datetime=None,
+):
+    """
+    Perform the final source reconciliation
+    and finalize the latest report revision
+    for the month that has just left the
+    normal correction window.
+
+    Source changes made on the final day of
+    the correction month are therefore still
+    captured before finalization.
+    """
+
+    reference_datetime = (
+        reference_datetime
+        or now_datetime()
+    )
+
+    (
+        year,
+        month,
+        period_from,
+        period_to,
+    ) = get_finalization_period(
+        reference_datetime
+    )
+
+    employees = (
+        _get_reportable_employees(
+            period_from,
+            period_to,
+        )
+    )
+
+    result = {
+        "year": year,
+        "month": month,
+        "employees": len(
+            employees
+        ),
+        "created": [],
+        "published_existing": [],
+        "revised": [],
+        "unchanged": [],
+        "finalized": [],
+        "already_final": [],
+        "blocked": [],
+        "failed": [],
+    }
+
+    for index, employee in enumerate(
+        employees,
+        start=1,
+    ):
+        save_point = (
+            f"monthly_finalize_{index}"
+        )
+
+        frappe.db.savepoint(
+            save_point
+        )
+
+        try:
+            current = (
+                _get_current_report(
+                    employee.name,
+                    year,
+                    month,
+                )
+            )
+
+            if (
+                current
+                and current.status
+                == STATUS_FINAL
+            ):
+                if (
+                    not _publication_state_is_consistent(
+                        current
+                    )
+                    or not current.employee_document
+                    or not current.pdf_file
+                ):
+                    raise RuntimeError(
+                        (
+                            "Final Monthly Time Report "
+                            f"{current.name} has an "
+                            "inconsistent publication "
+                            "state."
+                        )
+                    )
+
+                result[
+                    "already_final"
+                ].append(
+                    {
+                        "employee": (
+                            employee.name
+                        ),
+                        "report": (
+                            current.name
+                        ),
+                        "revision": (
+                            cint(
+                                current.revision
+                            )
+                        ),
+                    }
+                )
+
+                frappe.db.release_savepoint(
+                    save_point
+                )
+
+                continue
+
+            snapshot = (
+                build_monthly_time_report_snapshot(
+                    employee.name,
+                    year,
+                    month,
+                    reference_datetime=(
+                        reference_datetime
+                    ),
+                )
+            )
+
+            if (
+                not cint(
+                    snapshot.get(
+                        "is_complete"
+                    )
+                )
+                or cint(
+                    snapshot.get(
+                        "blocking_issue_count"
+                    )
+                )
+            ):
+                result[
+                    "blocked"
+                ].append(
+                    {
+                        "employee": (
+                            employee.name
+                        ),
+                        "report": (
+                            current.name
+                            if current
+                            else None
+                        ),
+                        "blocking_issue_count": (
+                            cint(
+                                snapshot.get(
+                                    "blocking_issue_count"
+                                )
+                            )
+                        ),
+                    }
+                )
+
+                frappe.logger(
+                    "hr_addon"
+                ).warning(
+                    (
+                        "Monthly Time Report "
+                        "finalization blocked for "
+                        "%s / %02d/%04d because "
+                        "source data is incomplete."
+                    ),
+                    employee.name,
+                    month,
+                    year,
+                )
+
+                frappe.db.release_savepoint(
+                    save_point
+                )
+
+                continue
+
+            report_name = None
+
+            if not current:
+                publication = (
+                    create_and_publish_monthly_time_report(
+                        employee.name,
+                        year,
+                        month,
+                        reference_datetime=(
+                            reference_datetime
+                        ),
+                    )
+                )
+
+                report_name = (
+                    publication[
+                        "report"
+                    ]
+                )
+
+                result[
+                    "created"
+                ].append(
+                    {
+                        "employee": (
+                            employee.name
+                        ),
+                        "report": (
+                            report_name
+                        ),
+                        "employee_document": (
+                            publication[
+                                "employee_document"
+                            ]
+                        ),
+                    }
+                )
+
+            else:
+                if (
+                    current.status
+                    != STATUS_GENERATED
+                ):
+                    raise RuntimeError(
+                        (
+                            "Current Monthly Time "
+                            f"Report {current.name} "
+                            f"has invalid status "
+                            f"{current.status} for "
+                            "finalization."
+                        )
+                    )
+
+                if not (
+                    _publication_state_is_consistent(
+                        current
+                    )
+                ):
+                    raise RuntimeError(
+                        (
+                            "Monthly Time Report "
+                            f"{current.name} has an "
+                            "inconsistent publication "
+                            "state."
+                        )
+                    )
+
+                current_doc = (
+                    frappe.get_doc(
+                        "Monthly Time Report",
+                        current.name,
+                    )
+                )
+
+                current_fingerprint = (
+                    monthly_time_report_source_fingerprint(
+                        current_doc
+                    )
+                )
+
+                source_fingerprint = (
+                    monthly_time_report_source_fingerprint(
+                        snapshot
+                    )
+                )
+
+                if (
+                    current.employee_document
+                    and current.pdf_file
+                ):
+                    if (
+                        current_fingerprint
+                        != source_fingerprint
+                    ):
+                        publication = (
+                            regenerate_and_publish_monthly_time_report(
+                                current.name,
+                                reference_datetime=(
+                                    reference_datetime
+                                ),
+                            )
+                        )
+
+                        report_name = (
+                            publication[
+                                "report"
+                            ]
+                        )
+
+                        result[
+                            "revised"
+                        ].append(
+                            {
+                                "employee": (
+                                    employee.name
+                                ),
+                                "previous_report": (
+                                    current.name
+                                ),
+                                "report": (
+                                    report_name
+                                ),
+                                "employee_document": (
+                                    publication[
+                                        "employee_document"
+                                    ]
+                                ),
+                                "revision": (
+                                    publication[
+                                        "revision"
+                                    ]
+                                ),
+                            }
+                        )
+
+                    else:
+                        report_name = (
+                            current.name
+                        )
+
+                        result[
+                            "unchanged"
+                        ].append(
+                            {
+                                "employee": (
+                                    employee.name
+                                ),
+                                "report": (
+                                    current.name
+                                ),
+                            }
+                        )
+
+                else:
+                    if (
+                        current_fingerprint
+                        != source_fingerprint
+                    ):
+                        raise RuntimeError(
+                            (
+                                "Unpublished Monthly "
+                                "Time Report "
+                                f"{current.name} no "
+                                "longer matches the "
+                                "source snapshot."
+                            )
+                        )
+
+                    publication = (
+                        publish_monthly_time_report(
+                            current.name
+                        )
+                    )
+
+                    report_name = (
+                        publication[
+                            "report"
+                        ]
+                    )
+
+                    result[
+                        "published_existing"
+                    ].append(
+                        {
+                            "employee": (
+                                employee.name
+                            ),
+                            "report": (
+                                report_name
+                            ),
+                            "employee_document": (
+                                publication[
+                                    "employee_document"
+                                ]
+                            ),
+                        }
+                    )
+
+            finalization = (
+                finalize_monthly_time_report(
+                    report_name,
+                    reference_datetime=(
+                        reference_datetime
+                    ),
+                )
+            )
+
+            result[
+                "finalized"
+            ].append(
+                {
+                    "employee": (
+                        employee.name
+                    ),
+                    "report": (
+                        finalization[
+                            "report"
+                        ]
+                    ),
+                    "finalized_at": (
+                        finalization[
+                            "finalized_at"
+                        ]
+                    ),
+                    "finalized_by": (
+                        finalization[
+                            "finalized_by"
+                        ]
+                    ),
+                }
+            )
+
+            frappe.db.release_savepoint(
+                save_point
+            )
+
+        except Exception:
+            frappe.db.rollback(
+                save_point=(
+                    save_point
+                )
+            )
+
+            result[
+                "failed"
+            ].append(
+                {
+                    "employee": (
+                        employee.name
+                    ),
+                }
+            )
+
+            frappe.log_error(
+                title=(
+                    "Monthly Time Report "
+                    "Finalization"
                 ),
                 message=(
                     frappe.get_traceback()
