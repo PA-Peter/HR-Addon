@@ -1,0 +1,119 @@
+{
+ "app": "hr_addon",
+ "charts": [],
+ "content": "[{\"id\":\"rm-self-header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Mein Arbeitsplatz</b></span>\",\"col\":12}},{\"id\":\"rm-self-time\",\"type\":\"card\",\"data\":{\"card_name\":\"Zeit & Korrekturen\",\"col\":4}},{\"id\":\"rm-self-leave\",\"type\":\"card\",\"data\":{\"card_name\":\"Abwesenheit\",\"col\":4}},{\"id\":\"rm-self-docs\",\"type\":\"card\",\"data\":{\"card_name\":\"Dokumente\",\"col\":4}}]",
+ "creation": "2026-10-01 16:30:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 1,
+ "icon": "calendar",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Mein Arbeitsplatz",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Zeit & Korrekturen",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mein Zeitkonto",
+   "link_count": 0,
+   "link_to": "Time Account Ledger Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Meine Arbeitstage",
+   "link_count": 0,
+   "link_to": "Workday",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Meine Checkins",
+   "link_count": 0,
+   "link_to": "Employee Checkin",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Korrektur beantragen",
+   "link_count": 0,
+   "link_to": "Checkin Correction Request",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Abwesenheit",
+   "link_count": 1,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Urlaub / Abwesenheit",
+   "link_count": 0,
+   "link_to": "Leave Application",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Dokumente",
+   "link_count": 1,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Meine Dokumente",
+   "link_count": 0,
+   "link_to": "Employee Document",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-01 16:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR Addon",
+ "name": "Mein Arbeitsplatz",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Employee"
+  }
+ ],
+ "sequence_id": 1.0,
+ "shortcuts": [],
+ "title": "Mein Arbeitsplatz",
+ "type": "Workspace"
+}

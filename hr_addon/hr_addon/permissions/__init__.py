@@ -1,0 +1,1 @@
+# RieckMedia HR Addon permissions

@@ -125,6 +125,10 @@
    "read": 1,
    "report": 1,
    "role": "HR Manager"
+  },
+  {
+   "read": 1,
+   "role": "Employee"
   }
  ],
  "sort_field": "effective_date",

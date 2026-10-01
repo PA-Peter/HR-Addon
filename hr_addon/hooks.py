@@ -26,6 +26,21 @@ required_apps = ["hrms"]
 
 
 permission_query_conditions = {
+	"Employee Checkin": (
+		"hr_addon.hr_addon.permissions."
+		"self_service."
+		"checkin_get_permission_query_conditions"
+	),
+	"Workday": (
+		"hr_addon.hr_addon.permissions."
+		"self_service."
+		"workday_get_permission_query_conditions"
+	),
+	"Time Account Ledger Entry": (
+		"hr_addon.hr_addon.permissions."
+		"self_service."
+		"ledger_get_permission_query_conditions"
+	),
 	"Checkin Correction Request": (
 		"hr_addon.hr_addon.doctype."
 		"checkin_correction_request."
@@ -42,6 +57,21 @@ permission_query_conditions = {
 
 
 has_permission = {
+	"Employee Checkin": (
+		"hr_addon.hr_addon.permissions."
+		"self_service."
+		"checkin_has_permission"
+	),
+	"Workday": (
+		"hr_addon.hr_addon.permissions."
+		"self_service."
+		"workday_has_permission"
+	),
+	"Time Account Ledger Entry": (
+		"hr_addon.hr_addon.permissions."
+		"self_service."
+		"ledger_has_permission"
+	),
 	"Checkin Correction Request": (
 		"hr_addon.hr_addon.doctype."
 		"checkin_correction_request."
@@ -58,6 +88,13 @@ has_permission = {
 
 
 doc_events = {
+	"Employee Checkin": {
+		"before_insert": (
+			"hr_addon.hr_addon.permissions."
+			"self_service."
+			"block_employee_direct_checkin_creation"
+		)
+	},
 	"Leave Application": {
 		"on_change": "hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.export_calendar",
 		"on_cancel": "hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.export_calendar"
