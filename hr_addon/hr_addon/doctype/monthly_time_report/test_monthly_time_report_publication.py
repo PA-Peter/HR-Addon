@@ -21,6 +21,7 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_publicati
     _assert_revision_source,
     _create_revision_snapshot,
     _employee_document_values,
+    _format_day_row,
     _get_company_branding,
     _image_file_data_uri,
     _save_private_pdf,
@@ -236,6 +237,61 @@ class TestMonthlyTimeReportPublication(
                 signed=True,
             ),
             "00:00",
+        )
+
+    def test_missing_checkin_is_visible_in_pdf_row(
+        self,
+    ):
+        row = self._day(
+            snapshot_status=(
+                "Missing Checkin"
+            ),
+            checkins_text=(
+                "07:58 IN"
+            ),
+            target_minutes=480,
+            raw_work_minutes=0,
+            physical_break_minutes=0,
+            automatic_break_deduction_minutes=0,
+            accountable_minutes=0,
+            daily_delta_minutes=-480,
+        )
+
+        formatted = (
+            _format_day_row(
+                row
+            )
+        )
+
+        self.assertEqual(
+            formatted[
+                "checkins"
+            ],
+            (
+                "FEHLER: unvollständige "
+                "Buchung · 07:58 IN"
+            ),
+        )
+
+        self.assertEqual(
+            formatted[
+                "target"
+            ],
+            "08:00",
+        )
+
+        self.assertEqual(
+            formatted[
+                "accountable"
+            ],
+            "00:00",
+        )
+
+        self.assertEqual(
+            formatted[
+                "delta"
+            ],
+            "-08:00",
         )
 
     def test_pdf_context_uses_snapshot_values(

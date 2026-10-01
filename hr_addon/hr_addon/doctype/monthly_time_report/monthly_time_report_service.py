@@ -35,10 +35,16 @@ SNAPSHOT_STATUS_MISSING_CHECKIN = (
     "Missing Checkin"
 )
 
+# A Missing Checkin is intentionally NOT blocking.
+# It must be visible in the employee's monthly report
+# and its Workday delta remains financially/time-account
+# effective until corrected.
+#
+# Only missing structural calculation sources block
+# publication.
 BLOCKING_SNAPSHOT_STATUSES = {
     SNAPSHOT_STATUS_NO_WWH,
     SNAPSHOT_STATUS_MISSING_WORKDAY,
-    SNAPSHOT_STATUS_MISSING_CHECKIN,
 }
 
 

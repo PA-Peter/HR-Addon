@@ -216,7 +216,6 @@ def _validate_snapshot_consistency(
         in {
             "No Working Hours Model",
             "Missing Workday",
-            "Missing Checkin",
         }
     )
 

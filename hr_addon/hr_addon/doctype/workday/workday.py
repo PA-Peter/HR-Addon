@@ -37,21 +37,34 @@ class Workday(Document):
 			and bool(self.last_checkout)
 		)
 
-		# A completely empty scheduled workday is a valid
-		# time-account event: without leave/holiday credit it
-		# represents a full negative target day.
+		# A scheduled day without usable working time is still
+		# a valid time-account event.
 		#
-		# Existing but unusable checkins remain fail-closed.
+		# - no checkins:
+		#   full target deficit
+		# - incomplete/invalid checkins:
+		#   no working time is guessed; the full remaining
+		#   target deficit is posted and the Workday keeps
+		#   status "Missing Checkin"
+		# - checkins explicitly disabled via
+		#   skip_auto_attendance:
+		#   audit data only, no automatic time-account effect
+		# - Not Workday:
+		#   no target deficit
 		has_no_checkin_records = not bool(
 			self.employee_checkins
 		)
 
+		has_missing_checkin = (
+			self.status == "Missing Checkin"
+		)
+
 		delta_is_valid = (
 			has_complete_effective_span
+			or has_missing_checkin
 			or (
 				has_no_checkin_records
-				and self.status
-				not in ("Missing Checkin", "Not Workday")
+				and self.status != "Not Workday"
 			)
 		)
 

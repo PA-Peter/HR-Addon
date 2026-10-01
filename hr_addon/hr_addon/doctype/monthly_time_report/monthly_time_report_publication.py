@@ -202,6 +202,25 @@ def _format_day_row(
             "delta": "—",
         }
 
+    checkins_text = (
+        row.checkins_text
+        or "—"
+    )
+
+    if (
+        row.snapshot_status
+        == "Missing Checkin"
+    ):
+        checkins_text = (
+            "FEHLER: unvollständige Buchung"
+        )
+
+        if row.checkins_text:
+            checkins_text += (
+                " · "
+                + row.checkins_text
+            )
+
     return {
         "date": (
             report_date.strftime(
@@ -214,8 +233,7 @@ def _format_day_row(
             ]
         ),
         "checkins": (
-            row.checkins_text
-            or "—"
+            checkins_text
         ),
         "target": (
             format_minutes(

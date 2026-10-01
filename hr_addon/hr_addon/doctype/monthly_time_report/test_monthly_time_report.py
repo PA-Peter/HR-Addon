@@ -15,6 +15,7 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report import (
     _validate_snapshot_consistency,
 )
 from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_service import (
+    BLOCKING_SNAPSHOT_STATUSES,
     SNAPSHOT_STATUS_MISSING_CHECKIN,
     SNAPSHOT_STATUS_MISSING_WORKDAY,
     SNAPSHOT_STATUS_NO_WWH,
@@ -348,7 +349,7 @@ class TestMonthlyTimeReport(
             SNAPSHOT_STATUS_MISSING_WORKDAY,
         )
 
-    def test_missing_checkin_workday_is_blocking(
+    def test_missing_checkin_workday_is_reportable_warning(
         self,
     ):
         row = _build_day_snapshot(
@@ -359,7 +360,15 @@ class TestMonthlyTimeReport(
             self._workday(
                 status=(
                     "Missing Checkin"
-                )
+                ),
+                raw_work_minutes=0,
+                physical_break_minutes=0,
+                qualifying_break_minutes=0,
+                required_break_minutes=0,
+                automatic_break_deduction_minutes=0,
+                absence_credit_minutes=0,
+                accountable_minutes=0,
+                daily_delta_minutes=-480,
             ),
             [],
             None,
@@ -371,6 +380,32 @@ class TestMonthlyTimeReport(
                 "snapshot_status"
             ],
             SNAPSHOT_STATUS_MISSING_CHECKIN,
+        )
+
+        self.assertEqual(
+            row[
+                "target_minutes"
+            ],
+            480,
+        )
+
+        self.assertEqual(
+            row[
+                "accountable_minutes"
+            ],
+            0,
+        )
+
+        self.assertEqual(
+            row[
+                "daily_delta_minutes"
+            ],
+            -480,
+        )
+
+        self.assertNotIn(
+            SNAPSHOT_STATUS_MISSING_CHECKIN,
+            BLOCKING_SNAPSHOT_STATUSES,
         )
 
     def test_missing_wwh_is_blocking(
@@ -746,6 +781,58 @@ class TestMonthlyTimeReport(
                     ),
                     "snapshot_status": (
                         "Missing Workday"
+                    ),
+                },
+            )
+
+        doc.validate()
+
+    def test_snapshot_consistency_allows_missing_checkin_as_non_blocking(
+        self,
+    ):
+        doc = MonthlyTimeReport(
+            {
+                "doctype": (
+                    "Monthly Time Report"
+                ),
+                "report_year": 2026,
+                "report_month": 8,
+                "period_from": (
+                    "2026-08-01"
+                ),
+                "period_to": (
+                    "2026-08-31"
+                ),
+                "revision": 1,
+                "status": (
+                    "Generated"
+                ),
+                "opening_balance_minutes": 0,
+                "ledger_movement_minutes": 0,
+                "closing_balance_minutes": 0,
+                "blocking_issue_count": 0,
+                "is_complete": 1,
+            }
+        )
+
+        doc.flags[
+            SERVICE_FLAG
+        ] = True
+
+        for day in range(
+            1,
+            32,
+        ):
+            doc.append(
+                "days",
+                {
+                    "report_date": (
+                        f"2026-08-{day:02d}"
+                    ),
+                    "snapshot_status": (
+                        "Missing Checkin"
+                        if day == 3
+                        else "OK"
                     ),
                 },
             )

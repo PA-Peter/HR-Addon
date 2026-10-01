@@ -886,7 +886,7 @@ class TestWorkdayLedgerLifecycle(IntegrationTestCase):
             [],
         )
 
-    def test_missing_checkin_creates_no_ledger_entry(
+    def test_missing_checkin_posts_negative_target_delta(
         self,
     ):
         workday = self._insert_empty_scheduled_day(
@@ -899,12 +899,40 @@ class TestWorkdayLedgerLifecycle(IntegrationTestCase):
         )
 
         self.assertEqual(
-            workday.daily_delta_minutes,
+            workday.target_minutes,
+            480,
+        )
+
+        self.assertEqual(
+            workday.accountable_minutes,
             0,
         )
+
         self.assertEqual(
-            rows,
-            [],
+            workday.daily_delta_minutes,
+            -480,
+        )
+
+        self.assertEqual(
+            len(rows),
+            1,
+        )
+
+        self.assertEqual(
+            rows[0].entry_type,
+            ENTRY_TYPE_WORKDAY,
+        )
+
+        self.assertEqual(
+            rows[0].delta_minutes,
+            -480,
+        )
+
+        self.assertEqual(
+            get_time_account_balance(
+                self.employee
+            ),
+            -480,
         )
 
 
