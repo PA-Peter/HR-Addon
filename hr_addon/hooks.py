@@ -77,5 +77,10 @@ scheduler_events = {
 	"daily": [
 		"hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.send_work_anniversary_notification",
 		"hr_addon.hr_addon.doctype.employee_document.employee_document.auto_archive_old_employee_documents",
-	]
+	],
+	"cron": {
+		"0 3 3 * *": [
+			"hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_scheduler.generate_previous_month_reports",
+		],
+	},
 }
