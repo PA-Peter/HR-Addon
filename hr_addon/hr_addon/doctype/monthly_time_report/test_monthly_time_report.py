@@ -1,6 +1,7 @@
 # Copyright (c) 2026, RieckMedia and contributors
 # See license.txt
 
+from copy import deepcopy
 from datetime import datetime
 from unittest.mock import patch
 
@@ -27,6 +28,7 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_service i
     build_monthly_time_report_snapshot,
     create_monthly_time_report_snapshot,
     get_report_period,
+    monthly_time_report_source_fingerprint,
 )
 
 
@@ -909,3 +911,112 @@ class TestMonthlyTimeReport(
             frappe.ValidationError
         ):
             doc.on_trash()
+
+
+    def test_source_fingerprint_ignores_revision_metadata_but_detects_source_change(
+        self,
+    ):
+        snapshot = {
+            "employee": "EMP-A",
+            "employee_name": "Employee A",
+            "report_title": (
+                "Employee A · 2026-09"
+            ),
+            "report_year": 2026,
+            "report_month": 9,
+            "period_from": (
+                getdate(
+                    "2026-09-01"
+                )
+            ),
+            "period_to": (
+                getdate(
+                    "2026-09-30"
+                )
+            ),
+            "opening_balance_minutes": 0,
+            "ledger_movement_minutes": 240,
+            "closing_balance_minutes": 240,
+            "is_complete": 1,
+            "blocking_issue_count": 0,
+            "revision": 1,
+            "generated_at": (
+                datetime(
+                    2026,
+                    10,
+                    3,
+                    3,
+                    0,
+                    0,
+                )
+            ),
+            "days": [
+                {
+                    "report_date": (
+                        getdate(
+                            "2026-09-08"
+                        )
+                    ),
+                    "snapshot_status": "OK",
+                    "workday": "WD-1",
+                    "workday_status": "",
+                    "checkins_text": (
+                        "08:00 IN · 12:00 OUT"
+                    ),
+                    "target_minutes": 0,
+                    "raw_work_minutes": 240,
+                    "accountable_minutes": 240,
+                    "daily_delta_minutes": 240,
+                }
+            ],
+            "ledger_entries": [],
+        }
+
+        same_source = deepcopy(
+            snapshot
+        )
+
+        same_source[
+            "revision"
+        ] = 99
+
+        same_source[
+            "generated_at"
+        ] = datetime(
+            2026,
+            10,
+            10,
+            8,
+            0,
+            0,
+        )
+
+        self.assertEqual(
+            monthly_time_report_source_fingerprint(
+                snapshot
+            ),
+            monthly_time_report_source_fingerprint(
+                same_source
+            ),
+        )
+
+        changed_source = deepcopy(
+            snapshot
+        )
+
+        changed_source[
+            "days"
+        ][0][
+            "checkins_text"
+        ] = (
+            "08:05 IN · 12:00 OUT"
+        )
+
+        self.assertNotEqual(
+            monthly_time_report_source_fingerprint(
+                snapshot
+            ),
+            monthly_time_report_source_fingerprint(
+                changed_source
+            ),
+        )

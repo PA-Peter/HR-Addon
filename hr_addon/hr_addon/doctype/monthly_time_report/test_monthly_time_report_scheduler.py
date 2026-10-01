@@ -13,6 +13,7 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_scheduler
     _get_reportable_employees,
     generate_previous_month_reports,
     get_previous_month_period,
+    reconcile_previous_month_reports,
 )
 
 
@@ -626,3 +627,470 @@ class TestMonthlyTimeReportScheduler(
         )
 
         rollback.assert_called_once()
+
+
+    def test_reconcile_before_day_three_is_skipped(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            10,
+            2,
+            3,
+            15,
+            0,
+        )
+
+        with patch(
+            (
+                f"{MODULE}."
+                "_get_reportable_employees"
+            )
+        ) as employees:
+            result = (
+                reconcile_previous_month_reports(
+                    reference
+                )
+            )
+
+        employees.assert_not_called()
+
+        self.assertTrue(
+            result[
+                "skipped_before_day_3"
+            ]
+        )
+
+    def test_reconcile_creates_missing_report_after_day_three(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            10,
+            4,
+            3,
+            15,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        snapshot = {
+            "is_complete": 1,
+            "blocking_issue_count": 0,
+        }
+
+        publication = {
+            "report": "MTR-1",
+            "employee_document": "EDOC-1",
+        }
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=None,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                ),
+                return_value=snapshot,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "create_and_publish_monthly_time_report"
+                ),
+                return_value=publication,
+            ) as create,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+        ):
+            result = (
+                reconcile_previous_month_reports(
+                    reference
+                )
+            )
+
+        create.assert_called_once_with(
+            "EMP-A",
+            2026,
+            9,
+            reference_datetime=(
+                reference
+            ),
+        )
+
+        self.assertEqual(
+            result[
+                "created"
+            ][0][
+                "report"
+            ],
+            "MTR-1",
+        )
+
+    def test_reconcile_unchanged_published_report_is_idempotent(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            10,
+            4,
+            3,
+            15,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        current = frappe._dict(
+            {
+                "name": "MTR-1",
+                "employee_document": "EDOC-1",
+                "pdf_file": (
+                    "/private/files/r1.pdf"
+                ),
+            }
+        )
+
+        snapshot = {
+            "is_complete": 1,
+            "blocking_issue_count": 0,
+        }
+
+        current_doc = frappe._dict(
+            {
+                "name": "MTR-1",
+            }
+        )
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=current,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                ),
+                return_value=snapshot,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.get_doc"
+                ),
+                return_value=current_doc,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "monthly_time_report_source_fingerprint"
+                ),
+                side_effect=[
+                    "same",
+                    "same",
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "regenerate_and_publish_monthly_time_report"
+                )
+            ) as regenerate,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+        ):
+            result = (
+                reconcile_previous_month_reports(
+                    reference
+                )
+            )
+
+        regenerate.assert_not_called()
+
+        self.assertEqual(
+            result[
+                "unchanged"
+            ][0][
+                "report"
+            ],
+            "MTR-1",
+        )
+
+    def test_reconcile_changed_published_report_creates_revision(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            10,
+            4,
+            3,
+            15,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        current = frappe._dict(
+            {
+                "name": "MTR-1",
+                "employee_document": "EDOC-1",
+                "pdf_file": (
+                    "/private/files/r1.pdf"
+                ),
+            }
+        )
+
+        snapshot = {
+            "is_complete": 1,
+            "blocking_issue_count": 0,
+        }
+
+        current_doc = frappe._dict(
+            {
+                "name": "MTR-1",
+            }
+        )
+
+        publication = {
+            "report": "MTR-2",
+            "previous_report": "MTR-1",
+            "employee_document": "EDOC-2",
+            "revision": 2,
+        }
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=current,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                ),
+                return_value=snapshot,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.get_doc"
+                ),
+                return_value=current_doc,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "monthly_time_report_source_fingerprint"
+                ),
+                side_effect=[
+                    "old",
+                    "new",
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "regenerate_and_publish_monthly_time_report"
+                ),
+                return_value=publication,
+            ) as regenerate,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+        ):
+            result = (
+                reconcile_previous_month_reports(
+                    reference
+                )
+            )
+
+        regenerate.assert_called_once_with(
+            "MTR-1",
+            reference_datetime=(
+                reference
+            ),
+        )
+
+        self.assertEqual(
+            result[
+                "revised"
+            ][0][
+                "report"
+            ],
+            "MTR-2",
+        )
+
+        self.assertEqual(
+            result[
+                "revised"
+            ][0][
+                "revision"
+            ],
+            2,
+        )
+
+    def test_reconcile_blocked_source_does_not_replace_report(
+        self,
+    ):
+        reference = datetime(
+            2026,
+            10,
+            4,
+            3,
+            15,
+            0,
+        )
+
+        employee = (
+            self._employee(
+                "EMP-A"
+            )
+        )
+
+        current = frappe._dict(
+            {
+                "name": "MTR-1",
+                "employee_document": "EDOC-1",
+                "pdf_file": (
+                    "/private/files/r1.pdf"
+                ),
+            }
+        )
+
+        snapshot = {
+            "is_complete": 0,
+            "blocking_issue_count": 1,
+        }
+
+        with (
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_reportable_employees"
+                ),
+                return_value=[
+                    employee
+                ],
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "_get_current_report"
+                ),
+                return_value=current,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "build_monthly_time_report_snapshot"
+                ),
+                return_value=snapshot,
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "regenerate_and_publish_monthly_time_report"
+                )
+            ) as regenerate,
+            patch(
+                f"{MODULE}.frappe.db.savepoint"
+            ),
+            patch(
+                (
+                    f"{MODULE}."
+                    "frappe.db.release_savepoint"
+                )
+            ),
+            patch(
+                f"{MODULE}.frappe.logger"
+            ),
+        ):
+            result = (
+                reconcile_previous_month_reports(
+                    reference
+                )
+            )
+
+        regenerate.assert_not_called()
+
+        self.assertEqual(
+            result[
+                "blocked"
+            ][0][
+                "blocking_issue_count"
+            ],
+            1,
+        )

@@ -2,6 +2,8 @@
 # For license information, please see license.txt
 
 import calendar
+import hashlib
+import json
 from collections import defaultdict
 from datetime import timedelta
 
@@ -63,6 +65,235 @@ WORKDAY_FIELDS = [
     "daily_delta_minutes",
 ]
 
+
+FINGERPRINT_REPORT_FIELDS = (
+    "employee",
+    "employee_name",
+    "report_title",
+    "report_year",
+    "report_month",
+    "period_from",
+    "period_to",
+    "opening_balance_minutes",
+    "ledger_movement_minutes",
+    "closing_balance_minutes",
+    "is_complete",
+    "blocking_issue_count",
+)
+
+FINGERPRINT_DAY_FIELDS = (
+    "report_date",
+    "snapshot_status",
+    "workday",
+    "workday_status",
+    "checkins_text",
+    "leave_application",
+    "leave_type",
+    "leave_portion",
+    "target_minutes",
+    "raw_work_minutes",
+    "physical_break_minutes",
+    "qualifying_break_minutes",
+    "required_break_minutes",
+    "automatic_break_deduction_minutes",
+    "absence_credit_minutes",
+    "accountable_minutes",
+    "daily_delta_minutes",
+    "remarks",
+)
+
+FINGERPRINT_LEDGER_FIELDS = (
+    "ledger_entry",
+    "effective_date",
+    "effective_time",
+    "entry_type",
+    "delta_minutes",
+    "voucher_type",
+    "voucher_no",
+    "reverses_entry",
+    "remarks",
+)
+
+
+def _source_value(
+    source,
+    fieldname,
+):
+    if hasattr(
+        source,
+        "get",
+    ):
+        return source.get(
+            fieldname
+        )
+
+    return getattr(
+        source,
+        fieldname,
+        None,
+    )
+
+
+def _canonical_fingerprint_value(
+    value,
+):
+    if value is None:
+        return None
+
+    if isinstance(
+        value,
+        bool,
+    ):
+        return int(
+            value
+        )
+
+    if isinstance(
+        value,
+        (
+            str,
+            int,
+            float,
+        ),
+    ):
+        return value
+
+    return str(
+        value
+    )
+
+
+def _fingerprint_row(
+    row,
+    fields,
+):
+    return {
+        fieldname: (
+            _canonical_fingerprint_value(
+                _source_value(
+                    row,
+                    fieldname,
+                )
+            )
+        )
+        for fieldname in fields
+    }
+
+
+def monthly_time_report_source_fingerprint(
+    snapshot,
+):
+    """
+    Build a deterministic hash from the immutable
+    source snapshot only.
+
+    Generation metadata, revision numbers, PDF/File
+    links and Employee Document links are deliberately
+    excluded.
+    """
+
+    report_values = (
+        _fingerprint_row(
+            snapshot,
+            FINGERPRINT_REPORT_FIELDS,
+        )
+    )
+
+    days = [
+        _fingerprint_row(
+            row,
+            FINGERPRINT_DAY_FIELDS,
+        )
+        for row in (
+            _source_value(
+                snapshot,
+                "days",
+            )
+            or []
+        )
+    ]
+
+    days.sort(
+        key=lambda row: (
+            str(
+                row.get(
+                    "report_date"
+                )
+                or ""
+            ),
+            str(
+                row.get(
+                    "workday"
+                )
+                or ""
+            ),
+        )
+    )
+
+    ledger_entries = [
+        _fingerprint_row(
+            row,
+            FINGERPRINT_LEDGER_FIELDS,
+        )
+        for row in (
+            _source_value(
+                snapshot,
+                "ledger_entries",
+            )
+            or []
+        )
+    ]
+
+    ledger_entries.sort(
+        key=lambda row: (
+            str(
+                row.get(
+                    "effective_date"
+                )
+                or ""
+            ),
+            str(
+                row.get(
+                    "effective_time"
+                )
+                or ""
+            ),
+            str(
+                row.get(
+                    "ledger_entry"
+                )
+                or ""
+            ),
+        )
+    )
+
+    payload = {
+        "report": (
+            report_values
+        ),
+        "days": (
+            days
+        ),
+        "ledger_entries": (
+            ledger_entries
+        ),
+    }
+
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(
+            ",",
+            ":",
+        ),
+        ensure_ascii=False,
+    ).encode(
+        "utf-8"
+    )
+
+    return hashlib.sha256(
+        encoded
+    ).hexdigest()
 
 def get_report_period(
     year,
