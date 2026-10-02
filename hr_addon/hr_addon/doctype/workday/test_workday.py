@@ -12,6 +12,7 @@ from hr_addon.hr_addon.doctype.workday.workday import (
     evaluate_daily_minutes,
     evaluate_minimum_break,
     get_completed_workday_date_range,
+    get_unmarked_range,
     get_workday,
     parse_employee_checkins,
 )
@@ -179,6 +180,103 @@ class TestCompletedWorkdayDateRange(UnitTestCase):
 
         self.assertEqual(str(date_from), "2026-09-21")
         self.assertEqual(str(date_to), "2026-09-27")
+
+
+class TestWorkdayUnmarkedRange(UnitTestCase):
+    def test_single_employee_range_is_not_gated_by_wwh_on_from_day(
+        self,
+    ):
+        module = (
+            "hr_addon.hr_addon.doctype."
+            "workday.workday"
+        )
+
+        with (
+            patch(
+                module
+                + ".get_employee_default_work_hour",
+                side_effect=AssertionError(
+                    "WWH must not gate the "
+                    "complete requested range"
+                ),
+            ),
+            patch(
+                module
+                + ".frappe.get_cached_value",
+                return_value=(None, None),
+            ),
+            patch(
+                module + ".frappe.get_list",
+                return_value=[],
+            ),
+        ):
+            result = get_unmarked_range(
+                "HR-EMP-00003",
+                "2026-09-25",
+                "2026-10-01",
+            )
+
+        self.assertEqual(
+            result,
+            [
+                "2026-09-25",
+                "2026-09-26",
+                "2026-09-27",
+                "2026-09-28",
+                "2026-09-29",
+                "2026-09-30",
+                "2026-10-01",
+            ],
+        )
+
+    def test_multi_employee_range_is_not_gated_by_wwh_on_from_day(
+        self,
+    ):
+        module = (
+            "hr_addon.hr_addon.doctype."
+            "workday.workday"
+        )
+
+        with (
+            patch(
+                module
+                + ".get_employee_default_work_hour",
+                side_effect=AssertionError(
+                    "WWH must not gate the "
+                    "complete requested range"
+                ),
+            ),
+            patch(
+                module
+                + ".frappe.get_cached_value",
+                return_value=(None, None),
+            ),
+            patch(
+                module + ".frappe.get_list",
+                return_value=[],
+            ),
+        ):
+            result = get_unmarked_range(
+                [
+                    "HR-EMP-00003",
+                    "HR-EMP-00004",
+                ],
+                "2026-09-25",
+                "2026-10-01",
+            )
+
+        self.assertEqual(
+            result,
+            [
+                "2026-09-25",
+                "2026-09-26",
+                "2026-09-27",
+                "2026-09-28",
+                "2026-09-29",
+                "2026-09-30",
+                "2026-10-01",
+            ],
+        )
 
 
 class TestWorkdayFailClosedDelta(UnitTestCase):

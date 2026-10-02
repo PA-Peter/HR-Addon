@@ -391,14 +391,9 @@ def get_unmarked_range(employee, from_day, to_day):
 	# If only one employee, use the old logic for backward compatibility
 	if len(employee_list) == 1:
 		single_employee = employee_list[0]
-		# weekly hours check
-		work_hours = get_employee_default_work_hour(
-			single_employee,
-			from_day,
-			skip_workday_if_no_weekly_hours=1
-			)
-		if work_hours is None:
-			return []
+		# WWH validity is date-specific. A WWH may start
+		# inside the requested range, so the complete range
+		# must not be rejected based on from_day.
 		joining_date, relieving_date = frappe.get_cached_value("Employee", single_employee, ["date_of_joining", "relieving_date"])
 		
 		start_day, end_day = _cap_date_range_by_employee_dates(joining_date, relieving_date, from_day, to_day)
@@ -429,13 +424,6 @@ def get_unmarked_range(employee, from_day, to_day):
 	for emp in employee_list:
 		joining_date, relieving_date = frappe.get_cached_value("Employee", emp, ["date_of_joining", "relieving_date"])
 
-		work_hours = get_employee_default_work_hour(
-			emp,
-			from_day,
-			skip_workday_if_no_weekly_hours=1
-		)
-		if work_hours is None:
-			continue
 		
 		start_day, end_day = _cap_date_range_by_employee_dates(joining_date, relieving_date, from_day, to_day)
 
