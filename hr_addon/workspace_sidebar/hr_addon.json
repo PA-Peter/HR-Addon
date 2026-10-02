@@ -1,0 +1,52 @@
+{
+ "app": "hr_addon",
+ "creation": "2026-10-01 17:30:00.000000",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "calendar",
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "calendar",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Mein Arbeitsplatz",
+   "link_to": "Mein Arbeitsplatz",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "calendar-clock",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Weekly Working Hours",
+   "link_to": "Weekly Working Hours",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "settings",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "HR Addon Settings",
+   "link_to": "HR Addon Settings",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-01 17:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR Addon",
+ "name": "HR Addon",
+ "owner": "Administrator",
+ "standard": 1,
+ "title": "HR Addon"
+}

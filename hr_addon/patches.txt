@@ -1,1 +1,2 @@
 hr_addon.patches.remove_employee_permanent
+hr_addon.patches.disable_obsolete_work_hour_report
