@@ -1,0 +1,250 @@
+{
+ "app": "hr_addon",
+ "charts": [],
+ "content": "[{\"id\":\"rm-admin-header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>HR Administration</b></span>\",\"col\":12}},{\"id\":\"rm-admin-people\",\"type\":\"card\",\"data\":{\"card_name\":\"Mitarbeiter\",\"col\":4}},{\"id\":\"rm-admin-leave\",\"type\":\"card\",\"data\":{\"card_name\":\"Abwesenheit\",\"col\":4}},{\"id\":\"rm-admin-time\",\"type\":\"card\",\"data\":{\"card_name\":\"Zeit & Korrekturen\",\"col\":4}},{\"id\":\"rm-admin-models\",\"type\":\"card\",\"data\":{\"card_name\":\"Arbeitszeitmodelle\",\"col\":4}},{\"id\":\"rm-admin-ledger\",\"type\":\"card\",\"data\":{\"card_name\":\"Zeitkonto\",\"col\":4}},{\"id\":\"rm-admin-docs\",\"type\":\"card\",\"data\":{\"card_name\":\"Dokumente & Reports\",\"col\":4}},{\"id\":\"rm-admin-settings\",\"type\":\"card\",\"data\":{\"card_name\":\"Einstellungen\",\"col\":4}}]",
+ "creation": "2026-10-02 10:30:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 1,
+ "icon": "users",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "HR Administration",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mitarbeiter",
+   "link_count": 1,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mitarbeiterstamm",
+   "link_count": 0,
+   "link_to": "Employee",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Abwesenheit",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Urlaub / Krankheit / Abwesenheit",
+   "link_count": 0,
+   "link_to": "Leave Application",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Urlaubsansprüche",
+   "link_count": 0,
+   "link_to": "Leave Allocation",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Abwesenheitsarten",
+   "link_count": 0,
+   "link_to": "Leave Type",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Feiertagskalender",
+   "link_count": 0,
+   "link_to": "Holiday List",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Zeit & Korrekturen",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Manuelle Checkins",
+   "link_count": 0,
+   "link_to": "Employee Checkin",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Checkin-Korrekturen",
+   "link_count": 0,
+   "link_to": "Checkin Correction Request",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Arbeitstage",
+   "link_count": 0,
+   "link_to": "Workday",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Workday Reprocessing",
+   "link_count": 0,
+   "link_to": "Workday Reprocessing Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Arbeitszeitmodelle",
+   "link_count": 1,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Weekly Working Hours",
+   "link_count": 0,
+   "link_to": "Weekly Working Hours",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Zeitkonto",
+   "link_count": 1,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Time Account Ledger",
+   "link_count": 0,
+   "link_to": "Time Account Ledger Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Dokumente & Reports",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Monatsberichte",
+   "link_count": 0,
+   "link_to": "Monthly Time Report",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mitarbeiterdokumente",
+   "link_count": 0,
+   "link_to": "Employee Document",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Einstellungen",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "HR Addon Settings",
+   "link_count": 0,
+   "link_to": "HR Addon Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "HR Settings",
+   "link_count": 0,
+   "link_to": "HR Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-02 10:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR Addon",
+ "name": "HR Administration",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "HR Manager"
+  }
+ ],
+ "sequence_id": 2.0,
+ "shortcuts": [],
+ "title": "HR Administration",
+ "type": "Workspace"
+}
