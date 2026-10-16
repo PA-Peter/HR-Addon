@@ -21,6 +21,7 @@
   "total_work_hours",
   "disable_minimum_break_rule",
   "set_target_hours_to_zero_when_date_is_holiday",
+  "reset_time_account_monthly",
   "column_break_14",
   "amended_from",
   "company"
@@ -104,6 +105,14 @@
    "label": "Hours",
    "options": "Daily Hours Detail",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Reset the employee time-account balance at each calendar month end using an auditable automatic adjustment.",
+   "fieldname": "reset_time_account_monthly",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Reset Time Account Monthly"
   },
   {
    "fieldname": "column_break_14",

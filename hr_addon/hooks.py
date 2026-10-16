@@ -117,6 +117,9 @@ scheduler_events = {
 		"hr_addon.hr_addon.doctype.employee_document.employee_document.auto_archive_old_employee_documents",
 	],
 	"cron": {
+		"50 2 2-31 * *": [
+			"hr_addon.hr_addon.time_account_monthly_reset.reconcile_previous_month_time_account_resets",
+		],
 		"0 3 3 * *": [
 			"hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report_scheduler.generate_previous_month_reports",
 		],

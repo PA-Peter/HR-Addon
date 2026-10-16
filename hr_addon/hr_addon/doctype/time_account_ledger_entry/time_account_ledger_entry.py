@@ -37,12 +37,15 @@ AUTOMATIC_ENTRY_TYPES = (
     ENTRY_TYPE_REVERSAL,
 )
 
+MANUAL_EFFECTIVE_TIME = "23:59:59"
+
 SERVICE_INSERT_FLAG = "time_account_ledger_service"
 
 class TimeAccountLedgerEntry(Document):
     def validate(self):
         self._validate_immutable()
         self._validate_entry_type()
+        self._normalize_manual_effective_time()
         self._validate_automatic_entry_origin()
 
         if self.entry_type == ENTRY_TYPE_REVERSAL:
@@ -73,6 +76,10 @@ class TimeAccountLedgerEntry(Document):
                     self.entry_type
                 )
             )
+
+    def _normalize_manual_effective_time(self):
+        if self.entry_type in MANUAL_ENTRY_TYPES:
+            self.effective_time = MANUAL_EFFECTIVE_TIME
 
     def _validate_automatic_entry_origin(self):
         if (
@@ -287,6 +294,38 @@ class TimeAccountLedgerEntry(Document):
                 "Create a reversal instead."
             )
         )
+
+
+def create_manual_time_account_entry(
+    employee,
+    effective_date,
+    entry_type,
+    delta_minutes,
+    remarks,
+):
+    if entry_type not in MANUAL_ENTRY_TYPES:
+        frappe.throw(
+            _(
+                "Entry Type {0} is not a manual "
+                "time-account entry type."
+            ).format(entry_type)
+        )
+
+    entry = frappe.get_doc(
+        {
+            "doctype": "Time Account Ledger Entry",
+            "employee": employee,
+            "effective_date": effective_date,
+            "effective_time": MANUAL_EFFECTIVE_TIME,
+            "entry_type": entry_type,
+            "delta_minutes": cint(delta_minutes),
+            "remarks": remarks,
+        }
+    )
+
+    return entry.insert(
+        ignore_permissions=True
+    )
 
 
 def get_time_account_balance(employee):
