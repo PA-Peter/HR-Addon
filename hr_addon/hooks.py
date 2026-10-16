@@ -19,7 +19,8 @@ fixtures = [
 ]
 
 doctype_js = {
-	"HR Settings": "public/js/hr_settings.js"
+	"HR Settings": "public/js/hr_settings.js",
+	"Leave Application": "public/js/leave_application.js",
 }
 
 required_apps = ["hrms"]
