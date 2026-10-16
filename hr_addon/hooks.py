@@ -97,8 +97,26 @@ doc_events = {
 		)
 	},
 	"Leave Application": {
-		"on_change": "hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.export_calendar",
-		"on_cancel": "hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.export_calendar"
+		"after_insert": (
+			"hr_addon.hr_addon."
+			"leave_application_integration."
+			"handle_leave_after_insert"
+		),
+		"on_change": (
+			"hr_addon.hr_addon.doctype."
+			"hr_addon_settings."
+			"hr_addon_settings.export_calendar"
+		),
+		"on_submit": (
+			"hr_addon.hr_addon."
+			"leave_application_integration."
+			"handle_leave_submit"
+		),
+		"on_cancel": (
+			"hr_addon.hr_addon."
+			"leave_application_integration."
+			"handle_leave_cancel"
+		),
 	},
 	"Checkin Correction Request": {
 		"validate": (
