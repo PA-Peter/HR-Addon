@@ -1,5 +1,11 @@
 from . import __version__ as app_version
 
+from hr_addon.hr_addon.holiday_semantics import (
+    install_hrms_half_day_leave_patch,
+)
+
+install_hrms_half_day_leave_patch()
+
 app_name = "hr_addon"
 app_title = "HR Addon"
 app_publisher = "phamos.eu"

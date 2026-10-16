@@ -22,6 +22,10 @@ from hr_addon.hr_addon.doctype.monthly_time_report.monthly_time_report import (
     STATUS_GENERATED,
 )
 
+from hr_addon.hr_addon.holiday_semantics import (
+    get_holiday_fraction,
+)
+
 
 SNAPSHOT_STATUS_OK = "OK"
 SNAPSHOT_STATUS_OUTSIDE_EMPLOYMENT = (
@@ -148,10 +152,25 @@ def _canonical_fingerprint_value(
             value
         )
 
+    # Frappe/MariaDB normalizes empty text fields
+    # to NULL/None on a DB roundtrip. A fresh source
+    # snapshot, however, may still contain "".
+    #
+    # Those values are semantically identical and
+    # must not create a new Monthly Time Report
+    # revision every reconciliation cycle.
+    if isinstance(
+        value,
+        str,
+    ):
+        if value == "":
+            return None
+
+        return value
+
     if isinstance(
         value,
         (
-            str,
             int,
             float,
         ),
@@ -715,6 +734,15 @@ def _get_leave_by_date(
     result = {}
 
     for row in rows:
+        leave_type_includes_holiday = cint(
+            frappe.db.get_value(
+                "Leave Type",
+                row.leave_type,
+                "include_holiday",
+            )
+            or 0
+        )
+
         from_date = max(
             getdate(
                 row.from_date
@@ -751,7 +779,7 @@ def _get_leave_by_date(
                     )
                 )
 
-            is_half_day = (
+            is_explicit_half_day = (
                 cint(
                     row.half_day
                 )
@@ -762,6 +790,48 @@ def _get_leave_by_date(
                     )
                     == report_date
                 )
+            )
+
+            requested_fraction = (
+                0.5
+                if is_explicit_half_day
+                else 1.0
+            )
+
+            holiday_fraction = (
+                0.0
+                if leave_type_includes_holiday
+                else get_holiday_fraction(
+                    employee,
+                    report_date,
+                )
+            )
+
+            available_work_fraction = max(
+                1.0 - holiday_fraction,
+                0.0,
+            )
+
+            leave_fraction = (
+                requested_fraction
+                if leave_type_includes_holiday
+                else min(
+                    requested_fraction,
+                    available_work_fraction,
+                )
+            )
+
+            # Full holidays are not leave days when
+            # include_holiday is disabled. Half-day
+            # holidays retain the remaining 0.5 leave.
+            if leave_fraction <= 0:
+                report_date += timedelta(
+                    days=1
+                )
+                continue
+
+            is_half_day = (
+                leave_fraction < 1.0
             )
 
             result[

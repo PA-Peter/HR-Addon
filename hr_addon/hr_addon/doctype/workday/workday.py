@@ -11,6 +11,9 @@ from pypika import Order
 from pypika.functions import Date
 from hrms.hr.utils import get_holiday_dates_for_employee
 from hrms.utils.holiday_list import get_holiday_list_for_employee
+from hr_addon.hr_addon.holiday_semantics import (
+    get_holiday_fraction,
+)
 import traceback
 MECHANISM_MINIMUM_BREAK_RULE = "Break Hours from Minimum Break Rule"
 
@@ -170,11 +173,34 @@ class Workday(Document):
 		if not leave_application:
 			return 0
 
-		half_day, half_day_date = frappe.db.get_value(
+		half_day, half_day_date, leave_type = frappe.db.get_value(
 			"Leave Application",
 			leave_application,
-			["half_day", "half_day_date"],
+			["half_day", "half_day_date", "leave_type"],
 		)
+
+		include_holiday = cint(
+			frappe.db.get_value(
+				"Leave Type",
+				leave_type,
+				"include_holiday",
+			)
+			or 0
+		)
+
+		holiday_fraction = get_holiday_fraction(
+			self.employee,
+			self.log_date,
+		)
+
+		# A full Holiday/weekly-off is not consumed as
+		# ordinary leave when include_holiday is disabled.
+		# Keep the Workday's existing Not Workday state.
+		if (
+			not include_holiday
+			and holiday_fraction >= 1.0
+		):
+			return 0
 
 		is_half_day_for_this_date = (
 			half_day
@@ -932,6 +958,15 @@ def get_actual_employee_log(
         adate,
     )
 
+    holiday_fraction = get_holiday_fraction(
+        aemployee,
+        adate,
+    )
+
+    is_half_day_holiday = (
+        holiday_fraction == 0.5
+    )
+
     disable_minimum_break_rule = cint(
         employee_default_work_hour.disable_minimum_break_rule
     )
@@ -956,7 +991,85 @@ def get_actual_employee_log(
         or 0
     )
 
-    # Holiday handling.
+    # A half-day Holiday is still a working day.
+    # Only one half of the normal WWH target remains.
+    #
+    # It must therefore NOT use the full-holiday
+    # Not Workday path. Checkins remain effective,
+    # and an approved Leave Application may credit
+    # exactly the remaining half target.
+    if is_half_day_holiday:
+        half_target_hours = flt(
+            employee_default_work_hour.hours
+            or 0
+        ) / 2.0
+
+        if employee_checkins:
+            new_workday = get_workday(
+                employee_checkins,
+                employee_default_work_hour,
+                disable_minimum_break_rule,
+            )
+
+            new_workday[
+                "target_hours"
+            ] = half_target_hours
+
+            return new_workday
+
+        view_employee_attendance = (
+            get_employee_attendance(
+                aemployee,
+                adate,
+            )
+        )
+
+        break_minutes = (
+            employee_default_work_hour.break_minutes
+        )
+
+        mechanism = (
+            frappe.get_cached_doc(
+                "HR Addon Settings"
+            ).workday_break_calculation_mechanism
+        )
+
+        expected_break_hours = (
+            0
+            if mechanism
+            == MECHANISM_MINIMUM_BREAK_RULE
+            else flt(
+                break_minutes / 60
+            )
+        )
+
+        return {
+            "target_hours": half_target_hours,
+            "break_minutes": break_minutes,
+            "actual_working_hours": 0,
+            "manual_workday": 1,
+            "hours_worked": 0,
+            "nbreak": 0,
+            "attendance": (
+                view_employee_attendance[0].name
+                if view_employee_attendance
+                else ""
+            ),
+            "status": (
+                view_employee_attendance[0].status
+                if view_employee_attendance
+                else ""
+            ),
+            "break_hours": 0,
+            "employee_checkins": [],
+            "first_checkin": "",
+            "last_checkout": "",
+            "expected_break_hours": (
+                expected_break_hours
+            ),
+        }
+
+    # Full Holiday handling.
     if is_date_in_holiday_list:
         if not allow_workdays_on_holidays:
             return get_holiday_not_workday_log(
