@@ -1,7 +1,7 @@
 {
  "app": "hr_addon",
  "charts": [],
- "content": "[{\"id\":\"rm-admin-header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>HR Administration</b></span>\",\"col\":12}},{\"id\":\"rm-admin-people\",\"type\":\"card\",\"data\":{\"card_name\":\"Mitarbeiter\",\"col\":4}},{\"id\":\"rm-admin-leave\",\"type\":\"card\",\"data\":{\"card_name\":\"Abwesenheit\",\"col\":4}},{\"id\":\"rm-admin-time\",\"type\":\"card\",\"data\":{\"card_name\":\"Zeit & Korrekturen\",\"col\":4}},{\"id\":\"rm-admin-models\",\"type\":\"card\",\"data\":{\"card_name\":\"Arbeitszeitmodelle\",\"col\":4}},{\"id\":\"rm-admin-ledger\",\"type\":\"card\",\"data\":{\"card_name\":\"Zeitkonto\",\"col\":4}},{\"id\":\"rm-admin-docs\",\"type\":\"card\",\"data\":{\"card_name\":\"Dokumente & Reports\",\"col\":4}},{\"id\":\"rm-admin-settings\",\"type\":\"card\",\"data\":{\"card_name\":\"Einstellungen\",\"col\":4}}]",
+ "content": "[{\"id\":\"rm-admin-header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>HR Administration</b></span>\",\"col\":12}},{\"id\":\"rm-admin-people\",\"type\":\"card\",\"data\":{\"card_name\":\"Mitarbeiter\",\"col\":4}},{\"id\":\"rm-admin-leave\",\"type\":\"card\",\"data\":{\"card_name\":\"Abwesenheit\",\"col\":4}},{\"id\":\"rm-admin-calendar\",\"type\":\"card\",\"data\":{\"card_name\":\"Firmenkalender\",\"col\":4}},{\"id\":\"rm-admin-time\",\"type\":\"card\",\"data\":{\"card_name\":\"Zeit & Korrekturen\",\"col\":4}},{\"id\":\"rm-admin-models\",\"type\":\"card\",\"data\":{\"card_name\":\"Arbeitszeitmodelle\",\"col\":4}},{\"id\":\"rm-admin-ledger\",\"type\":\"card\",\"data\":{\"card_name\":\"Zeitkonto\",\"col\":4}},{\"id\":\"rm-admin-docs\",\"type\":\"card\",\"data\":{\"card_name\":\"Dokumente & Reports\",\"col\":4}},{\"id\":\"rm-admin-settings\",\"type\":\"card\",\"data\":{\"card_name\":\"Einstellungen\",\"col\":4}}]",
  "creation": "2026-10-02 10:30:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -31,7 +31,6 @@
    "onboard": 0,
    "type": "Link"
   },
-
   {
    "hidden": 0,
    "is_query_report": 0,
@@ -80,7 +79,24 @@
    "onboard": 0,
    "type": "Link"
   },
-
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Firmenkalender",
+   "link_count": 1,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Firmenveranstaltungen",
+   "link_count": 0,
+   "link_to": "Company Calendar Event",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
   {
    "hidden": 0,
    "is_query_report": 0,
@@ -129,7 +145,6 @@
    "onboard": 0,
    "type": "Link"
   },
-
   {
    "hidden": 0,
    "is_query_report": 0,
@@ -148,7 +163,6 @@
    "onboard": 0,
    "type": "Link"
   },
-
   {
    "hidden": 0,
    "is_query_report": 0,
@@ -167,7 +181,6 @@
    "onboard": 0,
    "type": "Link"
   },
-
   {
    "hidden": 0,
    "is_query_report": 0,
@@ -196,7 +209,6 @@
    "onboard": 0,
    "type": "Link"
   },
-
   {
    "hidden": 0,
    "is_query_report": 0,

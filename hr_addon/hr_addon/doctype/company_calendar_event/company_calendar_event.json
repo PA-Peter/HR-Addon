@@ -1,0 +1,144 @@
+{
+ "doctype": "DocType",
+ "name": "Company Calendar Event",
+ "module": "HR Addon",
+ "custom": 0,
+ "engine": "InnoDB",
+ "autoname": "format:CCE-{YYYY}-{#####}",
+ "naming_rule": "Expression",
+ "allow_rename": 0,
+ "track_changes": 1,
+ "title_field": "title",
+ "field_order": [
+  "title",
+  "category",
+  "location",
+  "date_section",
+  "start_date",
+  "end_date",
+  "date_column",
+  "all_day",
+  "is_published",
+  "time_section",
+  "start_time",
+  "end_time"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Bezeichnung",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Kategorie",
+   "options": "Veranstaltung\nBetriebsferien\nInventur\nInformation",
+   "default": "Veranstaltung",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Ort",
+   "in_list_view": 1,
+   "description": "Optionaler Veranstaltungsort. Wird auch im veröffentlichten Firmenkalender angezeigt."
+  },
+  {
+   "fieldname": "date_section",
+   "fieldtype": "Section Break",
+   "label": "Termin"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Beginn",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "Ende (einschließlich)",
+   "in_list_view": 1,
+   "description": "Bei eintägigen Veranstaltungen leer lassen."
+  },
+  {
+   "fieldname": "date_column",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "all_day",
+   "fieldtype": "Check",
+   "label": "Ganztägig",
+   "default": "1"
+  },
+  {
+   "fieldname": "is_published",
+   "fieldtype": "Check",
+   "label": "Im Kalender anzeigen",
+   "default": "1",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Nur aktivierte Veranstaltungen erscheinen in den Mitarbeiterkalendern und im ICS-Export."
+  },
+  {
+   "fieldname": "time_section",
+   "fieldtype": "Section Break",
+   "label": "Uhrzeiten",
+   "depends_on": "eval:doc.all_day == 0"
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Time",
+   "label": "Beginn Uhrzeit",
+   "depends_on": "eval:doc.all_day == 0"
+  },
+  {
+   "fieldname": "end_time",
+   "fieldtype": "Time",
+   "label": "Ende Uhrzeit",
+   "depends_on": "eval:doc.all_day == 0"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "HR Manager",
+   "create": 1,
+   "read": 1,
+   "write": 1,
+   "delete": 1,
+   "print": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Employee",
+   "read": 1
+  }
+ ],
+ "sort_field": "start_date",
+ "sort_order": "ASC",
+ "links": [],
+ "actions": [],
+ "states": [],
+ "creation": "2026-10-18 00:00:00.000000",
+ "modified": "2026-10-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "owner": "Administrator",
+ "docstatus": 0
+}

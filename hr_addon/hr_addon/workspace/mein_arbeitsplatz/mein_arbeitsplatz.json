@@ -17,9 +17,19 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Zeit & Korrekturen",
-   "link_count": 4,
+   "link_count": 5,
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Mein Jahreskalender",
+   "link_count": 0,
+   "link_to": "mein-jahreskalender",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
   },
   {
    "hidden": 0,

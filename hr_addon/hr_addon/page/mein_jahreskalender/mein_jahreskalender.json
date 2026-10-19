@@ -1,0 +1,20 @@
+{
+  "doctype": "Page",
+  "name": "mein-jahreskalender",
+  "page_name": "Mein Jahreskalender",
+  "title": "Mein Jahreskalender",
+  "module": "HR Addon",
+  "standard": "Yes",
+  "system_page": 0,
+  "roles": [
+    {
+      "role": "Employee"
+    },
+    {
+      "role": "HR Manager"
+    },
+    {
+      "role": "System Manager"
+    }
+  ]
+}
