@@ -94,6 +94,12 @@ has_permission = {
 }
 
 
+
+CALENDAR_REFRESH_HOOK = (
+    "hr_addon.hr_addon.company_calendar_updates."
+    "schedule_refresh"
+)
+
 doc_events = {
 	"Employee Checkin": {
 		"before_insert": (
@@ -108,12 +114,9 @@ doc_events = {
 			"leave_application_integration."
 			"handle_leave_after_insert"
 		),
-		"on_change": (
-			"hr_addon.hr_addon.doctype."
-			"hr_addon_settings."
-			"hr_addon_settings.export_calendar"
-		),
-		"on_submit": (
+		"on_change": CALENDAR_REFRESH_HOOK,
+        "on_trash": CALENDAR_REFRESH_HOOK,
+        "on_submit": (
 			"hr_addon.hr_addon."
 			"leave_application_integration."
 			"handle_leave_submit"
@@ -124,6 +127,19 @@ doc_events = {
 			"handle_leave_cancel"
 		),
 	},
+
+    "Employee": {
+        "on_change": CALENDAR_REFRESH_HOOK,
+        "on_trash": CALENDAR_REFRESH_HOOK,
+    },
+    "Company Calendar Event": {
+        "on_change": CALENDAR_REFRESH_HOOK,
+        "on_trash": CALENDAR_REFRESH_HOOK,
+    },
+    "Holiday List": {
+        "on_change": CALENDAR_REFRESH_HOOK,
+        "on_trash": CALENDAR_REFRESH_HOOK,
+    },
 	"Checkin Correction Request": {
 		"validate": (
 			"hr_addon.hr_addon.doctype."
@@ -139,6 +155,7 @@ scheduler_events = {
 	"daily": [
 		"hr_addon.hr_addon.doctype.hr_addon_settings.hr_addon_settings.send_work_anniversary_notification",
 		"hr_addon.hr_addon.doctype.employee_document.employee_document.auto_archive_old_employee_documents",
+        "hr_addon.hr_addon.company_calendar_updates.daily_reconcile",
 	],
 	"cron": {
 		"50 2 2-31 * *": [
