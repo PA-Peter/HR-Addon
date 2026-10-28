@@ -24,6 +24,14 @@ fixtures = [
 	]}
 ]
 
+extend_doctype_class = {
+    "Leave Application": [
+        "hr_addon.hr_addon.leave_application_warning."
+        "SickLeaveBalanceWarningMixin"
+    ],
+}
+
+
 doctype_js = {
 	"HR Settings": "public/js/hr_settings.js",
 	"Leave Application": "public/js/leave_application.js",

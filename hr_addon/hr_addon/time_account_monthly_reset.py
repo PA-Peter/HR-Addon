@@ -247,6 +247,7 @@ def reconcile_previous_month_time_account_resets(
                     remarks=_get_reset_remarks(
                         period_to
                     ),
+                    source_weekly_working_hours=model.name,
                 )
             )
 

@@ -13,6 +13,7 @@ from hr_addon.hr_addon.doctype.time_account_ledger_entry.time_account_ledger_ent
     ENTRY_TYPE_POSITIVE_ADJUSTMENT,
     ENTRY_TYPE_REVERSAL,
     ENTRY_TYPE_WORKDAY,
+    MANUAL_ENTRY_TYPES,
     get_time_account_balance,
     post_workday,
     reverse_time_account_entry,
@@ -84,7 +85,7 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
             }
         )
 
-        if internal_service:
+        if internal_service or entry_type in MANUAL_ENTRY_TYPES:
             entry.flags[
                 "time_account_ledger_service"
             ] = True
@@ -237,6 +238,28 @@ class TestTimeAccountLedgerEntry(IntegrationTestCase):
                 force=1,
                 ignore_permissions=True,
             )
+
+
+    def test_manual_entry_cannot_be_created_directly(self):
+        for entry_type, delta in (
+            (ENTRY_TYPE_PAYOUT, -60),
+            (ENTRY_TYPE_OPENING_BALANCE, 60),
+            (ENTRY_TYPE_POSITIVE_ADJUSTMENT, 60),
+            (ENTRY_TYPE_NEGATIVE_ADJUSTMENT, -60),
+        ):
+            with self.subTest(entry_type=entry_type):
+                entry = frappe.get_doc({
+                    "doctype": "Time Account Ledger Entry",
+                    "employee": self.employee,
+                    "effective_date": "2026-09-17",
+                    "effective_time": "23:59:59",
+                    "entry_type": entry_type,
+                    "delta_minutes": delta,
+                    "remarks": "Direct insert must be denied",
+                })
+
+                with self.assertRaises(frappe.ValidationError):
+                    entry.insert(ignore_permissions=True)
 
     def test_workday_entry_cannot_be_created_directly(self):
         workday = self.make_workday(42)

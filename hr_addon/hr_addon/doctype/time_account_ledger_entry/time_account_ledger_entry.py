@@ -47,6 +47,7 @@ class TimeAccountLedgerEntry(Document):
         self._validate_entry_type()
         self._normalize_manual_effective_time()
         self._validate_automatic_entry_origin()
+        self._validate_manual_entry_origin()
 
         if self.entry_type == ENTRY_TYPE_REVERSAL:
             self._apply_reversal()
@@ -91,6 +92,19 @@ class TimeAccountLedgerEntry(Document):
                     "{0} Time Account Ledger Entries may only be "
                     "created by the time-account service."
                 ).format(self.entry_type)
+            )
+
+
+    def _validate_manual_entry_origin(self):
+        if (
+            self.entry_type in MANUAL_ENTRY_TYPES
+            and not self.flags.get(SERVICE_INSERT_FLAG)
+        ):
+            frappe.throw(
+                _(
+                    "Manual time-account entries may only be "
+                    "created by the time-account service."
+                )
             )
 
     def _validate_non_zero_delta(self):
@@ -302,6 +316,7 @@ def create_manual_time_account_entry(
     entry_type,
     delta_minutes,
     remarks,
+    source_weekly_working_hours=None,
 ):
     if entry_type not in MANUAL_ENTRY_TYPES:
         frappe.throw(
@@ -310,6 +325,31 @@ def create_manual_time_account_entry(
                 "time-account entry type."
             ).format(entry_type)
         )
+
+
+    # Only submitted monthly-reset models may be
+    # recorded as the source of an automatic reset.
+    if source_weekly_working_hours:
+        model = frappe.db.get_value(
+            "Weekly Working Hours",
+            source_weekly_working_hours,
+            [
+                "employee",
+                "reset_time_account_monthly",
+                "docstatus",
+            ],
+            as_dict=True,
+        )
+
+        if (
+            not model
+            or model.employee != employee
+            or not cint(model.reset_time_account_monthly)
+            or cint(model.docstatus) != 1
+        ):
+            frappe.throw(
+                _("Invalid monthly-reset source model.")
+            )
 
     entry = frappe.get_doc(
         {
@@ -320,8 +360,16 @@ def create_manual_time_account_entry(
             "entry_type": entry_type,
             "delta_minutes": cint(delta_minutes),
             "remarks": remarks,
+            "voucher_type": (
+                "Weekly Working Hours"
+                if source_weekly_working_hours
+                else None
+            ),
+            "voucher_no": source_weekly_working_hours,
         }
     )
+
+    entry.flags[SERVICE_INSERT_FLAG] = True
 
     return entry.insert(
         ignore_permissions=True
@@ -412,7 +460,7 @@ def _get_active_workday_ledger_entries(workday_name):
     )
 
 
-def reverse_time_account_entry(entry_name):
+def reverse_time_account_entry(entry_name, remarks=None):
     original = frappe.db.get_value(
         "Time Account Ledger Entry",
         entry_name,
@@ -443,6 +491,7 @@ def reverse_time_account_entry(entry_name):
                 original.delta_minutes
             ),
             "reverses_entry": entry_name,
+            "remarks": remarks,
         }
     )
 
