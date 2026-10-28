@@ -7,6 +7,7 @@ Read-only. Uses submitted WWH schedules, approved HRMS leave
 applications, and the existing HR-Addon holiday semantics.
 """
 
+import json
 from collections import defaultdict
 from datetime import timedelta
 
@@ -88,6 +89,45 @@ def _result_row(period, employee, name, values):
     }
 
 
+
+def _normalize_multi_filter(value):
+    """Accept MultiSelectList values as list or JSON array."""
+    if value is None or value == "" or value == []:
+        return []
+
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return []
+
+        if value.startswith("["):
+            try:
+                value = json.loads(value)
+            except ValueError:
+                frappe.throw(_("Invalid selection filter."))
+        else:
+            value = [value]
+
+    if not isinstance(value, list):
+        frappe.throw(_("Invalid selection filter."))
+
+    result = []
+
+    for item in value:
+        if isinstance(item, dict):
+            item = item.get("value")
+
+        if not isinstance(item, str) or not item.strip():
+            frappe.throw(_("Invalid selection filter."))
+
+        item = item.strip()
+
+        if item not in result:
+            result.append(item)
+
+    return result
+
+
 def execute(filters=None):
     if (
         frappe.session.user != "Administrator"
@@ -113,13 +153,12 @@ def execute(filters=None):
     if aggregation not in ("Woche", "Monat", "Quartal", "Jahr"):
         frappe.throw(_("Invalid aggregation."))
 
-    employee_filter = filters.get("employee") or []
-    if isinstance(employee_filter, str):
-        employee_filter = [employee_filter]
-
-    type_filter = filters.get("leave_types") or []
-    if isinstance(type_filter, str):
-        type_filter = [type_filter]
+    employee_filter = _normalize_multi_filter(
+        filters.get("employee")
+    )
+    type_filter = _normalize_multi_filter(
+        filters.get("leave_types")
+    )
 
     employees = frappe.get_all(
         "Employee",
