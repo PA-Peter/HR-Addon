@@ -19,9 +19,19 @@ after_install = "hr_addon.hr_addon.doctype.workday.workday.create_background_job
 after_migrate = "hr_addon.hr_addon.doctype.workday.workday.create_background_job_for_workday_generation_after_install"
 
 fixtures = [
-	{"dt": "Custom Field", "filters": [
-		["module", "=", "HR Addon"]
-	]}
+    {
+        "dt": "Custom Field",
+        "or_filters": [
+            ["module", "=", "HR Addon"],
+            ["name", "=", "Leave Type-disabled"],
+        ],
+    },
+    {
+        "dt": "Print Format",
+        "filters": [
+            ["name", "=", "Personalverfügbarkeit PDF"],
+        ],
+    },
 ]
 
 extend_doctype_class = {

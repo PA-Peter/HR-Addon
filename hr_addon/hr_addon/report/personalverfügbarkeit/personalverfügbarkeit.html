@@ -1,0 +1,226 @@
+<style type="text/css">
+    @page {
+        size: A4 portrait;
+        margin: 6mm;
+    }
+
+    body {
+        margin: 0;
+        color: #20252b;
+        font-family: Arial, sans-serif;
+        font-size: 8pt;
+        line-height: 1.2;
+    }
+
+    h1 {
+        margin: 0 0 1.5mm;
+        text-align: center;
+        font-size: 14pt;
+        page-break-after: avoid;
+    }
+
+    h2 {
+        margin: 1.5mm 0 0.8mm;
+        font-size: 10pt;
+        page-break-after: avoid;
+        break-after: avoid-page;
+    }
+
+    .report-meta {
+        margin: 0 0 1mm;
+        padding: 1mm 2mm;
+        background: #f3f5f7;
+        font-size: 8pt;
+    }
+
+    .report-section {
+        margin: 0;
+        page-break-inside: avoid;
+        break-inside: avoid-page;
+    }
+
+    .report-table {
+        display: inline-table !important;
+        width: auto !important;
+        max-width: 100% !important;
+        margin: 0;
+        border-collapse: collapse;
+        table-layout: auto !important;
+        font-size: 7.5pt;
+    }
+
+    .report-table thead {
+        display: table-header-group;
+    }
+
+    .report-table th {
+        padding: 0.8mm 1.2mm;
+        border-bottom: 1px solid #87919b;
+        background: #edf0f3;
+        text-align: left;
+        vertical-align: bottom;
+        white-space: normal;
+    }
+
+    .report-table td {
+        padding: 0.7mm 1.2mm;
+        border-bottom: 1px solid #d9dee3;
+        overflow-wrap: anywhere;
+        vertical-align: top;
+    }
+
+    .report-table tr {
+        page-break-inside: avoid;
+    }
+
+    .report-table .number {
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .report-table .total-row td {
+        border-top: 1px solid #87919b;
+        background: #f3f5f7;
+        font-weight: bold;
+    }
+
+    .period { width: 20mm !important; }
+    .employee-id { width: 28mm !important; }
+    .employee-name { width: 42mm !important; }
+    .metric { width: 21mm !important; }
+
+    .printed-on {
+        margin-top: 2mm;
+        color: #68727d;
+        font-size: 7pt;
+        text-align: right;
+    }
+
+    img, .letter-head img, header img {
+        max-width: 100% !important;
+        max-height: 20mm !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain;
+    }
+
+    .letter-head {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: 24mm !important;
+        overflow: hidden !important;
+        margin-bottom: 2mm !important;
+    }
+</style>
+
+<div>
+    <h1>{%= title %}</h1>
+
+    <div class="report-meta">
+        <strong>{%= __("Zeitraum") %}:</strong>
+        {%= frappe.datetime.str_to_user(filters.from_date) %}
+        – {%= frappe.datetime.str_to_user(filters.to_date) %}
+        &nbsp;&nbsp;
+        <strong>{%= __("Gruppierung") %}:</strong>
+        {%= filters.aggregation || __("Monat") %}
+    </div>
+
+    <div class="report-section">
+    <h2>{%= __("Kapazität und Ausfall") %}</h2>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th class="period">{%= __("Zeitraum") %}</th>
+                <th class="employee-id">{%= __("Mitarbeiter-ID") %}</th>
+                <th class="employee-name">{%= __("Mitarbeiter") %}</th>
+                <th class="metric number">{%= __("Soll [h]") %}</th>
+                <th class="metric number">{%= __("Verfügbar [h]") %}</th>
+                <th class="metric number">{%= __("Ausfall [h]") %}</th>
+                <th class="metric number">{%= __("Verfügbar [%]") %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for (var i = 0; i < data.length; i++) { %}
+                {% var row = data[i]; %}
+                <tr class="{% if (!row.employee) { %}total-row{% } %}">
+                    <td>{%= row.periode || "" %}</td>
+                    <td>{%= row.employee || "" %}</td>
+                    <td>{%= row.mitarbeiter || "" %}</td>
+                    <td class="number">{%= frappe.format(row.soll_h, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.verfuegbar_h, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.auswahl_h, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.verfuegbar_pct, {fieldtype: "Float", precision: 2}) %}</td>
+                </tr>
+            {% } %}
+        </tbody>
+    </table>
+    </div>
+
+    <div class="report-section">
+    <h2>{%= __("Abwesenheitsstunden") %}</h2>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th class="period">{%= __("Zeitraum") %}</th>
+                <th class="employee-id">{%= __("Mitarbeiter-ID") %}</th>
+                <th class="employee-name">{%= __("Mitarbeiter") %}</th>
+                <th class="metric number">{%= __("Krankheit [h]") %}</th>
+                <th class="metric number">{%= __("Urlaub [h]") %}</th>
+                <th class="metric number">{%= __("Unbezahlt [h]") %}</th>
+                <th class="metric number">{%= __("Sonstige [h]") %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for (var i = 0; i < data.length; i++) { %}
+                {% var row = data[i]; %}
+                <tr class="{% if (!row.employee) { %}total-row{% } %}">
+                    <td>{%= row.periode || "" %}</td>
+                    <td>{%= row.employee || "" %}</td>
+                    <td>{%= row.mitarbeiter || "" %}</td>
+                    <td class="number">{%= frappe.format(row.krank_h, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.urlaub_h, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.unbezahlt_h, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.sonstige_h, {fieldtype: "Float", precision: 2}) %}</td>
+                </tr>
+            {% } %}
+        </tbody>
+    </table>
+    </div>
+
+    <div class="report-section">
+    <h2>{%= __("Quoten und Ausfall") %}</h2>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th class="period">{%= __("Zeitraum") %}</th>
+                <th class="employee-id">{%= __("Mitarbeiter-ID") %}</th>
+                <th class="employee-name">{%= __("Mitarbeiter") %}</th>
+                <th class="metric number">{%= __("Krankheit [%]") %}</th>
+                <th class="metric number">{%= __("Urlaub [%]") %}</th>
+                <th class="metric number">{%= __("Ausfall gesamt [%]") %}</th>
+                <th class="metric number">{%= __("Ausfall [h]") %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for (var i = 0; i < data.length; i++) { %}
+                {% var row = data[i]; %}
+                <tr class="{% if (!row.employee) { %}total-row{% } %}">
+                    <td>{%= row.periode || "" %}</td>
+                    <td>{%= row.employee || "" %}</td>
+                    <td>{%= row.mitarbeiter || "" %}</td>
+                    <td class="number">{%= frappe.format(row.krank_pct, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.urlaub_pct, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.ausfall_pct, {fieldtype: "Float", precision: 2}) %}</td>
+                    <td class="number">{%= frappe.format(row.auswahl_h, {fieldtype: "Float", precision: 2}) %}</td>
+                </tr>
+            {% } %}
+        </tbody>
+    </table>
+    </div>
+
+    <div class="printed-on">
+        {%= __("Erstellt am") %}:
+        {%= frappe.datetime.str_to_user(frappe.datetime.get_datetime_as_string()) %}
+    </div>
+</div>
