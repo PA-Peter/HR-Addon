@@ -136,3 +136,10 @@ Source-linked entries cannot be manually reversed.,Quellgebundene Buchungen kön
 Invalid selection filter.,Ungültiger Mehrfachauswahlfilter.
 Start date must not exceed end date.,Das Anfangsdatum darf nicht nach dem Enddatum liegen.
 Invalid aggregation.,Ungültige zeitliche Gruppierung.
+Checkin Correction Request,Checkin-Korrekturantrag
+Employee Document,Mitarbeiterdokument
+Company Calendar Event,Firmenkalendereintrag
+Weekly Working Hours,Arbeitszeitmodell
+HR Addon Settings,HR-Einstellungen
+Process Workdays,Arbeitstage verarbeiten
+Workday,Arbeitstag

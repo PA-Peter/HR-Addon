@@ -1,4 +1,26 @@
 frappe.query_reports["Personalverfügbarkeit"] = {
+    restore_hr_sidebar: function () {
+        const route = frappe.get_route();
+        const sidebar = frappe.app && frappe.app.sidebar;
+
+        if (
+            sidebar &&
+            !sidebar.sidebar_title &&
+            route[0] === "query-report" &&
+            route[1] === "Personalverfügbarkeit"
+        ) {
+            sidebar.setup("HR Addon");
+        }
+    },
+
+    onload: function () {
+        this.restore_hr_sidebar();
+    },
+
+    after_refresh: function () {
+        this.restore_hr_sidebar();
+    },
+
     filters: [
         {
             fieldname: "from_date",

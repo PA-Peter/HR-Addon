@@ -180,11 +180,11 @@ def execute(filters=None):
 
     columns = [
         {"fieldname": "periode", "label": _("Zeitraum"),
-         "fieldtype": "Data", "width": 125},
+         "fieldtype": "Data", "width": 105},
         {"fieldname": "employee", "label": _("Mitarbeiter-ID"),
-         "fieldtype": "Link", "options": "Employee", "width": 160},
+         "fieldtype": "Link", "options": "Employee", "width": 145},
         {"fieldname": "mitarbeiter", "label": _("Mitarbeiter"),
-         "fieldtype": "Data", "width": 180},
+         "fieldtype": "Data", "width": 175},
     ]
 
     for fieldname, label in (
@@ -194,7 +194,7 @@ def execute(filters=None):
         ("urlaub_h", "Urlaub [h]"),
         ("unbezahlt_h", "Unbezahlt [h]"),
         ("sonstige_h", "Sonstige [h]"),
-        ("auswahl_h", "Auswahl [h]"),
+        ("auswahl_h", "Ausfall [h]"),
         ("krank_pct", "Krankheit [%]"),
         ("urlaub_pct", "Urlaub [%]"),
         ("ausfall_pct", "Ausfall gesamt [%]"),
@@ -205,7 +205,7 @@ def execute(filters=None):
             "label": _(label),
             "fieldtype": "Float",
             "precision": 2,
-            "width": 135,
+            "width": max(88, min(148, 30 + 7 * len(label))),
         })
 
     if not employee_ids:
